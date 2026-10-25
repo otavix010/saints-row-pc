@@ -1,0 +1,250 @@
+﻿<#
+.SYNOPSIS
+  Gera e compila o port a partir da SUA cópia do jogo (a .iso do Xbox 360).
+
+.DESCRIPTION
+  Faz tudo em ordem, e cada etapa pula se já foi feita (use -RefazerDe N para refazer da etapa N em diante):
+    1. ferramentas: o SDK ReXGlue e o LLVM (Clang) portátil, baixados para a pasta _ferramentas ao lado do port
+       (compartilhada pelos ports de Xbox 360); confere o Visual Studio Build Tools (C++ e CMake);
+    2. jogo: lê o default.xex de dentro da .iso e confere a versão (a .iso fica onde está; o jogo a lê direto);
+    3. tradução: o código PowerPC do jogo vira C++ (generated\);
+    4. compilação;
+    5. pronto para jogar (jogar.cmd).
+  Os logs de cada etapa ficam em out\gerar\. O jogo e a versão esperada estão em config\jogo.txt.
+
+.PARAMETER Iso
+  A .iso do jogo (Xbox 360).
+.PARAMETER RefazerDe
+  Refaz a partir desta etapa (por exemplo 3 depois de uma versão nova do port).
+.PARAMETER Jobs
+  Quantos núcleos usar na compilação (padrão: todos).
+
+.EXAMPLE
+  .\gerar.ps1 -Iso "D:\Jogos\jogo.iso"
+#>
+param(
+    [string]$Iso = '',
+    [int]$RefazerDe = 0,
+    [int]$Jobs = 0
+)
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$R = $PSScriptRoot
+if (-not $Jobs) { $Jobs = [Environment]::ProcessorCount }
+$OUT = Join-Path $R 'out\gerar'
+New-Item -ItemType Directory -Force $OUT | Out-Null
+
+# the project (from its manifest) and the game it was made from (config\jogo.txt: titulo, versao, sha1_xex)
+$PROJETO = (Get-ChildItem $R -Filter '*_manifest.toml' | Select-Object -First 1).Name -replace '_manifest\.toml$', ''
+$JOGO = @{}
+foreach ($linha in Get-Content (Join-Path $R 'config\jogo.txt') -Encoding UTF8) {
+    if ($linha -match '^\s*([a-z0-9_]+)\s*=\s*(.*?)\s*$') { $JOGO[$Matches[1]] = $Matches[2] }
+}
+# the tools, pinned
+$SDK_VERSAO = '0.10.0.24'
+$SDK_URL = 'https://github.com/rexglue/rexglue-sdk/releases/download/nightly-20261002-bd833a2a/rexglue-sdk-0.10.0.24-dev.gbd833a2-win-amd64.zip'
+$SDK_SHA256 = '1e19d7ec9be0d9d7e1a0088a34a33b068d4dea520181e81318528ef3b37627e7'
+$LLVM_VERSAO = '23.1.3'
+$LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSAO/clang%2Bllvm-$LLVM_VERSAO-x86_64-pc-windows-msvc.tar.zst"
+$LLVM_SHA256 = '7e69dc07a4536b79ff24a651a2611990bf8eaab17ea560f1092707c4f31ba01d'
+# the package's zstd frames need a long window, more than tar's own decoder takes: the official zstd unpacks it
+$ZSTD_URL = 'https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-v1.5.7-win64.zip'
+$ZSTD_SHA256 = 'acb4e8111511749dc7a3ebedca9b04190e37a17afeb73f55d4425dbf0b90fad9'
+
+$FERRAMENTAS = Join-Path (Split-Path $R) '_ferramentas'
+$SDK = Join-Path $FERRAMENTAS "rexglue-sdk-$SDK_VERSAO"
+$LLVM = Join-Path $FERRAMENTAS "llvm-$LLVM_VERSAO"
+
+function Msg($t) { Write-Host "[gerar] $t" -ForegroundColor Cyan }
+
+# runs a native command through cmd (stdout and stderr into the step's log); a failure throws with the log's end
+function Exec([string]$linha) {
+    Add-Content -Path $script:LOG -Value "`r`n> $linha" -Encoding UTF8
+    cmd /d /c "$linha >> `"$script:LOG`" 2>&1"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host (Get-Content $script:LOG -Tail 25 | Out-String) -ForegroundColor DarkGray
+        throw "falhou (código $LASTEXITCODE): $linha`r`nlog completo: $script:LOG"
+    }
+}
+function Etapa([int]$n, [string]$nome, [scriptblock]$corpo) {
+    $marca = Join-Path $OUT "$nome.ok"
+    if ((Test-Path $marca) -and ($RefazerDe -eq 0 -or $n -lt $RefazerDe)) { Msg "${nome}: já feita (pulando)"; return }
+    Remove-Item $marca -ErrorAction SilentlyContinue
+    $script:LOG = Join-Path $OUT "$nome.log"
+    Set-Content -Path $script:LOG -Value "== $nome $(Get-Date)" -Encoding UTF8
+    Msg "$nome ..."
+    $t0 = Get-Date
+    & $corpo
+    Set-Content -Path $marca -Value (Get-Date) -Encoding UTF8
+    Msg ("{0}: ok ({1:N0} s)" -f $nome, ((Get-Date) - $t0).TotalSeconds)
+}
+function Baixar([string]$url, [string]$destino) {
+    Msg "baixando $(Split-Path $destino -Leaf) ..."
+    $tmp = "$destino.parcial"
+    Exec "curl.exe -L --fail --retry 3 -o `"$tmp`" `"$url`""
+    Move-Item -Force $tmp $destino
+}
+
+# the Visual Studio with the C++ tools (MSVC's headers and libraries, the Windows SDK, CMake and Ninja)
+function Achar-VS {
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (-not (Test-Path $vswhere)) { return $null }
+    $p = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project -property installationPath
+    if ($p) { return ($p | Select-Object -First 1) }
+    return $null
+}
+
+# ---------------------------------------------------------------------------- Xbox 360 disc images (XDVDFS)
+# The volume descriptor sits 0x10000 into the game partition, which starts at one of these offsets
+# (a trimmed xiso, XGD1, XGD2, XGD3).
+function Ler-Xex([string]$iso, [string]$destino) {
+    $f = [IO.File]::OpenRead($iso)
+    try {
+        $r = New-Object IO.BinaryReader($f)
+        $base = $null
+        foreach ($b in @(0, 0x18300000, 0xFD90000, 0x2080000)) {
+            if ($b + 0x10000 + 28 -gt $f.Length) { continue }
+            $f.Position = $b + 0x10000
+            if ([Text.Encoding]::ASCII.GetString($r.ReadBytes(20)) -eq 'MICROSOFT*XBOX*MEDIA') { $base = $b; break }
+        }
+        if ($null -eq $base) { throw "não é uma imagem de disco do Xbox 360: $iso" }
+        $raizSetor = $r.ReadUInt32(); $raizTam = $r.ReadUInt32()
+        $f.Position = $base + [int64]$raizSetor * 2048
+        $dir = $r.ReadBytes($raizTam)
+        # the root directory is a binary tree of entries: left, right (in dwords), sector, size, attributes, name
+        $pilha = New-Object System.Collections.Stack
+        $pilha.Push(0)
+        $vistos = @{}
+        while ($pilha.Count) {
+            $o = $pilha.Pop()
+            if ($vistos[$o] -or $o + 14 -gt $dir.Length) { continue }
+            $vistos[$o] = $true
+            $esq = [BitConverter]::ToUInt16($dir, $o); $dirt = [BitConverter]::ToUInt16($dir, $o + 2)
+            if ($esq -eq 0xFFFF -and $dirt -eq 0xFFFF) { continue }
+            $setor = [BitConverter]::ToUInt32($dir, $o + 4); $tam = [BitConverter]::ToUInt32($dir, $o + 8)
+            $nome = [Text.Encoding]::ASCII.GetString($dir, $o + 14, $dir[$o + 13])
+            if ($nome -ieq 'default.xex') {
+                $f.Position = $base + [int64]$setor * 2048
+                $saida = [IO.File]::Create($destino)
+                try {
+                    $buf = New-Object byte[] (1MB); $falta = [int64]$tam
+                    while ($falta -gt 0) {
+                        $n = $f.Read($buf, 0, [int][Math]::Min($falta, $buf.Length))
+                        if ($n -le 0) { throw 'a .iso acabou antes do default.xex' }
+                        $saida.Write($buf, 0, $n); $falta -= $n
+                    }
+                } finally { $saida.Close() }
+                return
+            }
+            if ($esq) { $pilha.Push($esq * 4) }
+            if ($dirt) { $pilha.Push($dirt * 4) }
+        }
+        throw "a .iso não tem default.xex: $iso"
+    } finally { $f.Close() }
+}
+
+# ---------------------------------------------------------------------------- 1. ferramentas
+Etapa 1 '1_ferramentas' {
+    $vs = Achar-VS
+    if (-not $vs) {
+        throw "falta o Visual Studio Build Tools com C++ e CMake. Instale com:`r`n  winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override `"--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended`""
+    }
+    Add-Content $script:LOG "Visual Studio: $vs" -Encoding UTF8
+    New-Item -ItemType Directory -Force $FERRAMENTAS | Out-Null
+    if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe'))) {
+        $zip = Join-Path $FERRAMENTAS "rexglue-sdk-$SDK_VERSAO.zip"
+        if (-not (Test-Path $zip) -or (Get-FileHash $zip -Algorithm SHA256).Hash -ne $SDK_SHA256) { Baixar $SDK_URL $zip }
+        if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $SDK_SHA256) { throw "o SDK baixado não confere (SHA-256): $zip" }
+        $tmp = Join-Path $FERRAMENTAS 'sdk.tmp'
+        Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+        Expand-Archive $zip $tmp
+        Remove-Item -Recurse -Force $SDK -ErrorAction SilentlyContinue
+        Move-Item (Join-Path $tmp 'win-amd64') $SDK
+        Remove-Item -Recurse -Force $tmp, $zip
+    }
+    if (-not (Test-Path (Join-Path $LLVM 'bin\clang++.exe'))) {
+        $zstd = Join-Path $FERRAMENTAS 'zstd\zstd.exe'
+        if (-not (Test-Path $zstd)) {
+            $zip = Join-Path $FERRAMENTAS 'zstd.zip'
+            Baixar $ZSTD_URL $zip
+            if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $ZSTD_SHA256) { throw "o zstd baixado não confere (SHA-256): $zip" }
+            $tmp = Join-Path $FERRAMENTAS 'zstd.tmp'
+            Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+            Expand-Archive $zip $tmp
+            New-Item -ItemType Directory -Force (Split-Path $zstd) | Out-Null
+            Move-Item (Get-ChildItem $tmp -Recurse -Filter zstd.exe | Select-Object -First 1).FullName $zstd
+            Remove-Item -Recurse -Force $tmp, $zip
+        }
+        $pacote = Join-Path $FERRAMENTAS "llvm-$LLVM_VERSAO.tar.zst"
+        if (-not (Test-Path $pacote) -or (Get-FileHash $pacote -Algorithm SHA256).Hash -ne $LLVM_SHA256) { Baixar $LLVM_URL $pacote }
+        if ((Get-FileHash $pacote -Algorithm SHA256).Hash -ne $LLVM_SHA256) { throw "o LLVM baixado não confere (SHA-256): $pacote" }
+        $tmp = Join-Path $FERRAMENTAS 'llvm.tmp'
+        Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory $tmp | Out-Null
+        # only what a port's build runs: the compiler, the linker, the archiver and the compiler's own headers
+        # (about 370 MB of the package's 4 GB)
+        Msg 'extraindo o LLVM ...'
+        $quais = @('*/bin/clang.exe', '*/bin/clang++.exe', '*/bin/lld-link.exe', '*/bin/llvm-ar.exe', '*/bin/llvm-ranlib.exe', '*/lib/clang/*') |
+            ForEach-Object { "--include `"$_`"" }
+        Exec "`"$zstd`" -dc --long=31 `"$pacote`" | `"$env:SystemRoot\System32\tar.exe`" -xf - -C `"$tmp`" $($quais -join ' ')"
+        Remove-Item -Recurse -Force $LLVM -ErrorAction SilentlyContinue
+        Move-Item (Get-ChildItem $tmp -Directory | Select-Object -First 1).FullName $LLVM
+        if (-not (Test-Path (Join-Path $LLVM 'bin\clang++.exe'))) { throw 'o LLVM extraído não tem o clang++' }
+        Remove-Item -Recurse -Force $tmp, $pacote
+    }
+}
+
+# ---------------------------------------------------------------------------- 2. jogo
+Etapa 2 '2_jogo' {
+    if (-not $Iso) { throw 'falta a .iso do jogo (-Iso)' }
+    if (-not (Test-Path -LiteralPath $Iso)) { throw "a .iso não existe: $Iso" }
+    $assets = Join-Path $R 'assets'
+    New-Item -ItemType Directory -Force $assets | Out-Null
+    $xex = Join-Path $assets 'default.xex'
+    Ler-Xex $Iso $xex
+    $sha = (Get-FileHash $xex -Algorithm SHA1).Hash.ToLower()
+    if ($sha -ne $JOGO['sha1_xex']) {
+        throw "esta .iso não é a versão do port ($($JOGO['versao']), default.xex SHA-1 $($JOGO['sha1_xex']); a sua: $sha)"
+    }
+    Set-Content -Path (Join-Path $OUT 'iso.txt') -Value $Iso -Encoding UTF8
+}
+
+# ---------------------------------------------------------------------------- 3. tradução
+Etapa 3 '3_traducao' {
+    Exec "cd /d `"$R`" && `"$SDK\bin\rexglue.exe`" codegen ${PROJETO}_manifest.toml"
+}
+
+# ---------------------------------------------------------------------------- 4. compilação
+Etapa 4 '4_compilar' {
+    $vs = Achar-VS
+    $build = Join-Path $R 'out\build\win-amd64-release'
+    Remove-Item -Recurse -Force $build -ErrorAction SilentlyContinue
+    # a script of its own, one command a line: cmd reads each line when it runs it, so the PATH the Visual Studio's
+    # environment sets is the one the next lines see (and the whole build's output goes to the step's log)
+    $script = Join-Path $OUT 'compilar.cmd'
+    $linhas = @(
+        '@echo off',
+        "call `"$vs\Common7\Tools\VsDevCmd.bat`" -arch=amd64 -host_arch=amd64 >nul",
+        "set `"PATH=$LLVM\bin;%PATH%`"",
+        "cd /d `"$R`"",
+        "cmake --preset win-amd64-release -DCMAKE_C_COMPILER=`"$LLVM\bin\clang.exe`" -DCMAKE_CXX_COMPILER=`"$LLVM\bin\clang++.exe`" -DCMAKE_PREFIX_PATH=`"$SDK`" -DPORT_CPU_NATIVO=ON || exit /b 1",
+        "cmake --build out\build\win-amd64-release --parallel $Jobs || exit /b 1"
+    )
+    [IO.File]::WriteAllLines($script, $linhas, (New-Object Text.UTF8Encoding($false)))
+    Exec "`"$script`""
+    if (-not (Test-Path (Join-Path $build "$PROJETO.exe"))) { throw "a compilação não gerou o $PROJETO.exe" }
+}
+
+# ---------------------------------------------------------------------------- 5. pronto
+Etapa 5 '5_jogar' {
+    $iso = (Get-Content (Join-Path $OUT 'iso.txt') -Encoding UTF8 | Select-Object -First 1)
+    $jogar = Join-Path $R 'jogar.cmd'
+    $linhas = @(
+        '@echo off',
+        "rem $($JOGO['titulo']): o port, lendo a .iso direto. Opções: $PROJETO.toml ao lado do exe, ou --nome valor.",
+        'chcp 65001 >nul',
+        "start `"`" `"%~dp0out\build\win-amd64-release\$PROJETO.exe`" --game_data_root `"%~dp0assets`" --iso `"$iso`" %*"
+    )
+    [IO.File]::WriteAllLines($jogar, $linhas, (New-Object Text.UTF8Encoding($false)))
+    Msg "pronto: $jogar"
+}

@@ -1,0 +1,82 @@
+# Saints Row (default.xex, Title ID 545107D1): functions the analysis needs told
+
+# targets of tail branches the analysis did not see as functions
+[functions]
+0x82608CC0 = {}
+0x826090D8 = {}
+0x82609D80 = {}  # called through a pointer
+0x826235B0 = {}  # called through a pointer
+0x82277408 = {}  # called through a pointer
+0x82277418 = {}  # called through a pointer
+
+# pointers in data to plausible function starts (scripts/varrer_ponteiros.py)
+0x822A1B60 = {}
+0x8233A918 = {}
+0x823FE740 = {}
+0x824EAED8 = {}
+0x825EAB60 = {}
+0x825F4300 = {}
+0x82600880 = {}
+0x826044F8 = {}
+0x82608CD8 = {}
+0x82608D68 = {}
+0x82609D38 = {}
+0x82609D40 = {}
+0x82609D48 = {}
+0x82609D68 = {}
+0x82609D90 = {}
+0x82697D78 = {}
+0x826983C0 = {}
+0x826C7090 = {}
+
+
+# addresses the code builds (lis + addi/ori) at plausible function starts (scripts/varrer_ponteiros.py)
+0x8221EC08 = {}
+0x8221EC28 = {}
+0x8221EC40 = {}
+0x8221EC48 = {}
+0x8221EC50 = {}
+0x8221ECF8 = {}
+0x826B87D8 = {}
+0x826B87F0 = {}
+
+
+# code no function covered, a run ending in a return or a branch (scripts/varrer_ponteiros.py)
+0x8210A648 = {}
+0x8210A748 = {}
+0x82168948 = {}
+0x8219F2AC = {}
+0x821A14E8 = {}
+0x821A1534 = {}
+0x821A157C = {}
+0x821A15C4 = {}
+0x821A160C = {}
+0x821A1654 = {}
+0x821A16A0 = {}
+0x821A19F8 = {}
+0x82216D38 = {}
+0x82216E3C = {}
+0x8225BAF0 = {}
+0x8228B9CC = {}
+0x822AB72C = {}
+0x823ACFA4 = {}
+0x823E94D4 = {}
+0x8250DFBC = {}
+0x825AAC34 = {}
+0x825E5E04 = {}
+0x825E814C = {}
+0x825E8178 = {}
+0x82633734 = {}
+0x82633764 = {}
+0x826B4E38 = {}
+0x826B4E60 = {}
+0x826B4E88 = {}
+0x826B87A8 = {}
+0x826B87C0 = {}
+0x826B8808 = {}
+0x826C134C = {}
+0x826CE45C = {}
+0x826DBD0C = {}
+0x826E72A4 = {}
+0x82758EF8 = {}
+

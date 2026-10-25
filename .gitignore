@@ -1,0 +1,15 @@
+assets/
+generated/default/
+imagem.bin
+out/
+jogar/
+*.log
+codegen.out
+tela_*.png
+folha.png
+corte.png
+pilha.txt
+iso.txt
+__pycache__/
+folha*.png
+*.png
