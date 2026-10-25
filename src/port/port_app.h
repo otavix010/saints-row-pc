@@ -113,7 +113,8 @@ class PortApp : public rex::ReXApp {
   }
 
   void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
-    if (REXCVAR_GET(mostrar_fps)) new FpsOverlay(drawer);  // lives as long as the drawer
+    // the game's own counter, or the launcher's meter; lives as long as the drawer
+    if (REXCVAR_GET(mostrar_fps) || port_perf::OsdWanted()) new FpsOverlay(drawer);
   }
 
   void OnPostLoadXexImage() override {

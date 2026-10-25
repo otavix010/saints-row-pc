@@ -1,8 +1,12 @@
 // The PCI vendor of the GPU the runtime will take: like its D3D12 provider (with d3d12_adapter left alone), the first
 // hardware adapter DXGI lists. 0x10DE NVIDIA, 0x1002 AMD, 0x8086 Intel; 0 when there is none.
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 
 #include <dxgi1_4.h>

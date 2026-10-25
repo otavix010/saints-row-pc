@@ -9,12 +9,16 @@ option(PORT_CPU_NATIVO "Compile for this PC's processor (-march=native)" OFF)
 
 function(port_setup target)
     port_agility(${target})
-    # the GPU's vendor, for the render target path the port picks (src/port/port_options.h)
-    target_sources(${target} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/port/gpu_vendor.cpp")
-    target_link_libraries(${target} PRIVATE dxgi)
+    # the GPU's vendor, for the render target path the port picks (src/port/port_options.h); the performance meter's
+    # numbers from Windows (src/port/osd_stats.cpp); the frame limiter's wait (src/port/frame_limit.cpp)
+    target_sources(${target} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/port/gpu_vendor.cpp"
+                                     "${CMAKE_CURRENT_LIST_DIR}/src/port/osd_stats.cpp"
+                                     "${CMAKE_CURRENT_LIST_DIR}/src/port/frame_limit.cpp")
+    target_link_libraries(${target} PRIVATE dxgi pdh)
     target_link_options(${target} PRIVATE "LINKER:/MAP:${CMAKE_CURRENT_BINARY_DIR}/${target}.map")
     if(PORT_CPU_NATIVO)
         target_compile_options(${target} PRIVATE -march=native)
+        target_compile_definitions(${target} PRIVATE PORT_CPU_NATIVO=1)  # said in the session's performance file
     endif()
     if(WIN32 AND TARGET rex::amd_fidelityfx_dx12)
         add_custom_command(TARGET ${target} POST_BUILD
