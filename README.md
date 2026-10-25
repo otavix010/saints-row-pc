@@ -53,6 +53,7 @@ Ficam em `saintsrow.toml` ao lado do executável, ou no arquivo indicado pela va
 | `monitor` | 0 (padrão), 1, 2... | 0 |
 | `mostrar_fps` | `true`, `false` | `false` |
 | `volume` | 0 a 100 | 100 |
+| `alvos` | `auto`, `rov`, `rtv`: como a EDRAM é imitada; `auto` usa o caminho medido melhor para o jogo | `auto` |
 | `vibration` | `true`, `false` | `true` |
 | `zona_morta_esquerda`, `zona_morta_direita` | 0 a 50 (%) | 0 |
 | `user_language` | 1 inglês, 3 alemão, 4 francês, 5 espanhol, 6 italiano | 1 |

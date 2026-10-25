@@ -4,6 +4,8 @@
 //   nitidez   0-100, FSR's or CAS's sharpening: FSR's RCAS takes it as stops of reduction, 2 (the softest) at 0% down
 //             to 0 at 100% (70% is about the runtime's own 0.2); CAS adds 0 to 1
 //   the internal resolution at 2x (1440p) and 16x anisotropic filtering, instead of the runtime's 1x and 4x
+//   alvos     render targets: auto (ROV where the game measured better with it, on NVIDIA), rov or rtv;
+//             render_target_path_d3d12 underneath
 
 #pragma once
 
@@ -19,6 +21,13 @@ REXCVAR_DEFINE_INT32(nitidez, 70, "Port", "Sharpening of FSR or CAS, 0-100");
 REXCVAR_DEFINE_INT32(volume, 100, "Port", "The game's volume, 0-100");
 REXCVAR_DEFINE_INT32(zona_morta_esquerda, 0, "Port", "Left stick deadzone, 0-50 percent");
 REXCVAR_DEFINE_INT32(zona_morta_direita, 0, "Port", "Right stick deadzone, 0-50 percent");
+REXCVAR_DEFINE_STRING(alvos, "auto", "Port",
+                      "Render targets: auto (the path measured best for the game on this GPU), rov or rtv");
+
+namespace port {
+uint32_t GpuVendor();  // gpu_vendor.cpp
+inline bool g_rov_on_nvidia = false;  // a game's app sets it before setup when ROV measured better for it on NVIDIA
+}
 
 namespace port_options {
 
@@ -36,12 +45,21 @@ inline bool SetUnlessChosen(const char* name, const std::string& value) {
 inline void Log() {
   std::string line;
   for (const char* name : {"fps", "video_mode_refresh_rate", "resolution_scale", "anisotropic_override", "present_effect", "volume",
-                           "present_fsr_sharpness_reduction", "swap_post_effect", "readback_resolve", "vsync"})
+                           "present_fsr_sharpness_reduction", "swap_post_effect", "readback_resolve", "vsync",
+                           "render_target_path_d3d12"})
     line += std::string(name) + "=" + rex::cvar::GetFlagByName(name) + " ";
   REXLOG_INFO("port options: {}", line);
 }
 
 inline void Apply() {
+  // the render targets: ROV keeps the EDRAM in a buffer, as the console does, and skips the copies between render
+  // target formats that the RTV path pays for, more the higher the scale, but its own blending costs more per pixel.
+  // Which wins depends on the game: at 2x on an RTX 5080, Asura's Wrath's fights went from 76-99% of the GPU (RTV) to
+  // 38-47% (ROV), Saints Row's streets from 42% to 81-90%, the picture the same in both. So ROV only where a game
+  // measured better with it (g_rov_on_nvidia) and on NVIDIA; otherwise the runtime's own choice (RTV, ROV on Intel)
+  std::string path = REXCVAR_GET(alvos);
+  if (path == "auto") path = port::g_rov_on_nvidia && port::GpuVendor() == 0x10DE ? "rov" : "";
+  if (path == "rov" || path == "rtv") SetUnlessChosen("render_target_path_d3d12", path);
   SetUnlessChosen("resolution_scale", "2");
   SetUnlessChosen("anisotropic_override", "5");
   SetUnlessChosen("present_effect", REXCVAR_GET(filtro));
