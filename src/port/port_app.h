@@ -40,6 +40,7 @@
 #include "input_lock.h"
 #include "pad_script.h"
 #include "port_options.h"
+#include "window_icon.h"
 
 REXCVAR_DEFINE_STRING(iso, "", "Port",
                       "The game's disc image (.iso), read in place; game_data_root then needs only default.xex");
@@ -93,6 +94,11 @@ class PortApp : public rex::ReXApp {
   }
 
   void OnPostSetup() override { port_options::Log(); }
+
+  // the game's own icon on the window and the taskbar
+  void OnPostLaunchModule(rex::system::XThread*) override {
+    port::SetWindowIconFromTitle(runtime()->kernel_state(), app_context());
+  }
 
   void OnLoadXexImage(std::string& xex_image) override {
     (void)xex_image;

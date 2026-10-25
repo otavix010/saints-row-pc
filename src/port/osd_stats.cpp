@@ -5,7 +5,8 @@
 //   - the graphics card the runtime takes (the first hardware adapter): the busiest of its 3D engines, the counter
 //     Task Manager shows ("GPU Engine", only the instances of that adapter's LUID: a laptop's other GPU is left out),
 //     its temperature (D3DKMTQueryAdapterInfo, the adapter's performance data, tenths of a degree: Task Manager's too,
-//     for NVIDIA, AMD and Intel alike) and this process's video memory against its budget (DXGI).
+//     for NVIDIA, AMD and Intel alike) and this process's video memory against its budget (DXGI);
+//   - the system's memory in use and in all.
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -168,6 +169,12 @@ void Run() {
     if (adapter && SUCCEEDED(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) {
       s.vram_used_mb = double(info.CurrentUsage) / (1024.0 * 1024.0);
       s.vram_budget_mb = double(info.Budget) / (1024.0 * 1024.0);
+    }
+    MEMORYSTATUSEX memory{};
+    memory.dwLength = sizeof(memory);
+    if (GlobalMemoryStatusEx(&memory)) {
+      s.ram_total_mb = double(memory.ullTotalPhys) / (1024.0 * 1024.0);
+      s.ram_used_mb = double(memory.ullTotalPhys - memory.ullAvailPhys) / (1024.0 * 1024.0);
     }
     std::lock_guard<std::mutex> lock(g_lock);
     g_latest = s;

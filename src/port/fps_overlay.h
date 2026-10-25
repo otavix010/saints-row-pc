@@ -152,6 +152,8 @@ class FpsOverlay final : public rex::ui::ImGuiDialog {
                     deg(stats.gpu_temp).c_str());
         if (stats.vram_used_mb >= 0)
           ImGui::Text("VRAM %.1f / %.1f GB", stats.vram_used_mb / 1024.0, stats.vram_budget_mb / 1024.0);
+        if (stats.ram_used_mb >= 0)
+          ImGui::Text("RAM %.1f / %.1f GB", stats.ram_used_mb / 1024.0, stats.ram_total_mb / 1024.0);
       }
     }
     ImGui::End();
