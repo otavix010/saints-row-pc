@@ -30,9 +30,10 @@ def kill_from(folder, exe):
 
 
 def test_env(log, **extra):
-    """a run's environment: the log, the game folder, a window (never fullscreen), the prompts answered"""
+    """a run's environment: the log, the game folder, a window (never fullscreen nor activated), the prompts answered"""
+    # the window never activated (shown or raised): the person at the PC keeps the focus
     env = dict(os.environ, REX_LOG_FILE=str(log), REX_GAME_DATA_ROOT=str(ROOT / 'assets'), REX_FULLSCREEN='false',
-               REX_HEADLESS='true')
+               REX_HEADLESS='true', SDL_WINDOW_ACTIVATE_WHEN_SHOWN='0', SDL_WINDOW_ACTIVATE_WHEN_RAISED='0')
     if ISO_FILE.exists():
         env['REX_ISO'] = ISO_FILE.read_text(encoding='utf-8').strip()
     env.update({k: str(v) for k, v in extra.items()})
