@@ -7,14 +7,18 @@
 
 option(PORT_CPU_NATIVO "Compile for this PC's processor (-march=native)" OFF)
 
+# the Otavix ports' standard performance meter (src/port/otavix_osd.c, from otavix010/silent-hill-pc, MIT) is C
+enable_language(C)
+
 function(port_setup target)
     port_agility(${target})
     # the GPU's vendor, for the render target path the port picks (src/port/port_options.h); the performance meter's
     # numbers from Windows (src/port/osd_stats.cpp); the frame limiter's wait (src/port/frame_limit.cpp)
     target_sources(${target} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/port/gpu_vendor.cpp"
                                      "${CMAKE_CURRENT_LIST_DIR}/src/port/osd_stats.cpp"
-                                     "${CMAKE_CURRENT_LIST_DIR}/src/port/frame_limit.cpp")
-    target_link_libraries(${target} PRIVATE dxgi pdh)
+                                     "${CMAKE_CURRENT_LIST_DIR}/src/port/frame_limit.cpp"
+                                     "${CMAKE_CURRENT_LIST_DIR}/src/port/otavix_osd.c")
+    target_link_libraries(${target} PRIVATE dxgi pdh user32 gdi32)
     target_link_options(${target} PRIVATE "LINKER:/MAP:${CMAKE_CURRENT_BINARY_DIR}/${target}.map")
     if(PORT_CPU_NATIVO)
         target_compile_options(${target} PRIVATE -march=native)

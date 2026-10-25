@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "otavix_osd.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -115,14 +116,24 @@ void PortFrame() {
   }
 }
 
+// The counter and the meter, F10 showing or hiding them: one line in the Otavix ports' standard look (otavix_osd.c, a
+// window of its own over the game's, sized for 1080 lines whatever the game's internal resolution), the same in every
+// port. The ImGui dialog only follows the frames and the key; it draws nothing.
 class FpsOverlay final : public rex::ui::ImGuiDialog {
  public:
   explicit FpsOverlay(rex::ui::ImGuiDrawer* drawer)
-      : ImGuiDialog(drawer), last_time_(Clock::now()), full_(port_perf::OsdWanted()) {}
+      : ImGuiDialog(drawer), last_time_(Clock::now()), full_(port_perf::OsdWanted()) {
+    otx_osd_iniciar();
+  }
+  ~FpsOverlay() { otx_osd_texto(nullptr); }
 
  protected:
   void OnDraw(ImGuiIO& io) override {
-    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) shown_ = !shown_;
+    if (ImGui::IsKeyPressed(ImGuiKey_F10, false)) {
+      shown_ = !shown_;
+      if (!shown_) otx_osd_texto(nullptr);
+      last_text_ = Clock::time_point{};
+    }
     auto now = Clock::now();
     double seconds = std::chrono::duration<double>(now - last_time_).count();
     if (seconds >= 0.5) {
@@ -132,36 +143,34 @@ class FpsOverlay final : public rex::ui::ImGuiDialog {
       last_time_ = now;
     }
     port::osd::Stats stats = port::osd::Latest(shown_ && full_);
-    if (!shown_) return;
-    float scale = std::max(1.0f, io.DisplaySize.y / 1080.0f);
-    ImGui::SetNextWindowPos(ImVec2(8 * scale, 8 * scale));
-    ImGui::SetNextWindowBgAlpha(0.45f);
-    constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-                                        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
-                                        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
-    if (ImGui::Begin("##fps", nullptr, kFlags)) {
-      ImGui::SetWindowFontScale(full_ ? scale : 1.0f);
-      if (fps_ > 0)
-        ImGui::Text("%.0f fps  %.1f ms", fps_, 1000.0 / fps_);
-      else
-        ImGui::Text("-- fps");
-      if (full_) {
-        auto pct = [](float v) { return v < 0 ? std::string("--") : std::to_string(int(v + 0.5f)) + "%"; };
-        auto deg = [](float v) { return v < 0 ? std::string("--") : std::to_string(int(v + 0.5f)) + "\xC2\xB0"; };  // °
-        ImGui::Text("CPU %s %s  GPU %s %s", pct(stats.cpu).c_str(), deg(stats.cpu_temp).c_str(), pct(stats.gpu).c_str(),
-                    deg(stats.gpu_temp).c_str());
-        if (stats.vram_used_mb >= 0)
-          ImGui::Text("VRAM %.1f / %.1f GB", stats.vram_used_mb / 1024.0, stats.vram_budget_mb / 1024.0);
-        if (stats.ram_used_mb >= 0)
-          ImGui::Text("RAM %.1f / %.1f GB", stats.ram_used_mb / 1024.0, stats.ram_total_mb / 1024.0);
-      }
+    if (!shown_ || now - last_text_ < std::chrono::milliseconds(500)) return;
+    last_text_ = now;
+    // "FPS 60.0 16.7 ms   CPU 31% 65°C   GPU 40% 60°C   VRAM 1.2/16.0 GB   RAM 15.4/31.9 GB"; a temperature Windows
+    // does not give is left out
+    char line[192];
+    int n = fps_ > 0 ? std::snprintf(line, sizeof(line), "FPS %.1f %.1f ms", fps_, 1000.0 / fps_)
+                     : std::snprintf(line, sizeof(line), "FPS --");
+    auto part = [&](const char* name, float use, float temp) {
+      if (use < 0) return;
+      n += std::snprintf(line + n, sizeof(line) - size_t(n), "   %s %d%%", name, int(use + 0.5f));
+      if (temp >= 0) n += std::snprintf(line + n, sizeof(line) - size_t(n), " %d\xC2\xB0" "C", int(temp + 0.5f));
+    };
+    if (full_) {
+      part("CPU", stats.cpu, stats.cpu_temp);
+      part("GPU", stats.gpu, stats.gpu_temp);
+      if (stats.vram_used_mb >= 0)
+        n += std::snprintf(line + n, sizeof(line) - size_t(n), "   VRAM %.1f/%.1f GB", stats.vram_used_mb / 1024.0,
+                           stats.vram_budget_mb / 1024.0);
+      if (stats.ram_used_mb >= 0)
+        n += std::snprintf(line + n, sizeof(line) - size_t(n), "   RAM %.1f/%.1f GB", stats.ram_used_mb / 1024.0,
+                           stats.ram_total_mb / 1024.0);
     }
-    ImGui::End();
+    otx_osd_texto(line);
   }
 
  private:
   using Clock = std::chrono::steady_clock;
-  Clock::time_point last_time_;
+  Clock::time_point last_time_, last_text_{};
   uint64_t last_frames_ = 0;
   double fps_ = 0;
   bool full_;
