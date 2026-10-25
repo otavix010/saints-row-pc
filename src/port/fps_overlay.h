@@ -1,8 +1,8 @@
 // The game's frame rate, counted at each frame the game hands to the GPU (right after its VdSwap, the midasm hook
 // PortFrame in config/ganchos.toml), and what is done with it:
 //   mostrar_fps      the frame rate and the frame's time in the top-left corner (the game's own option)
-//   OTAVIX_OSD=1     the launcher's performance meter: also the processor's and the graphics card's use and the video
-//                    memory (osd_stats.cpp); F10 shows or hides either during the game
+//   OTAVIX_OSD=1     the launcher's performance meter: also the processor's and the graphics card's use and
+//                    temperature and the video memory (osd_stats.cpp); F10 shows or hides either during the game
 //   OTAVIX_DESEMPENHO=file   the session's frame rate for the launcher, written every 30 s and as the game closes:
 //                    {"versao":1,"build":...,"fps":{"medio","p1","min","max","amostras"},"minutos":...}; a sample is a
 //                    second, the first 30 s (the logos and the first load) and seconds above the frame rate asked
@@ -147,7 +147,9 @@ class FpsOverlay final : public rex::ui::ImGuiDialog {
         ImGui::Text("-- fps");
       if (full_) {
         auto pct = [](float v) { return v < 0 ? std::string("--") : std::to_string(int(v + 0.5f)) + "%"; };
-        ImGui::Text("CPU %s  GPU %s", pct(stats.cpu).c_str(), pct(stats.gpu).c_str());
+        auto deg = [](float v) { return v < 0 ? std::string("--") : std::to_string(int(v + 0.5f)) + "\xC2\xB0"; };  // °
+        ImGui::Text("CPU %s %s  GPU %s %s", pct(stats.cpu).c_str(), deg(stats.cpu_temp).c_str(), pct(stats.gpu).c_str(),
+                    deg(stats.gpu_temp).c_str());
         if (stats.vram_used_mb >= 0)
           ImGui::Text("VRAM %.1f / %.1f GB", stats.vram_used_mb / 1024.0, stats.vram_budget_mb / 1024.0);
       }
