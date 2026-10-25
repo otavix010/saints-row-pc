@@ -1,1 +1,6 @@
 # Saints Row: hooks in the game's code (src/)
+
+# A frame handed to the GPU (right after the game's VdSwap): counts the frame rate (src/port/fps_overlay.h)
+[[midasm_hook]]
+address = 0x825E56D0
+name = "PortFrame"

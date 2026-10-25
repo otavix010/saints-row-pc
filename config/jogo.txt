@@ -1,3 +1,11 @@
 titulo=Saints Row
 versao=Saints Row (World)
 sha1_xex=c2646093ff3926141fcf4fd630e876873d1caece
+title_id=545107D1
+cor=150,60,170
+marca=Deep Silver
+iso_gb=7
+fps=30
+fps_original=30
+fps_padrao=30
+idiomas=1,4,3,5,6

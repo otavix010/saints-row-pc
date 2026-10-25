@@ -14,7 +14,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--largura', type=int, default=320)
     a = ap.parse_args()
-    files = sorted(glob.glob(str(ROOT / 'tela_*.png')), key=lambda f: int(Path(f).stem[5:]))
+    files = sorted((f for f in glob.glob(str(ROOT / 'tela_*.png')) if Path(f).stem[5:].isdigit()),
+                   key=lambda f: int(Path(f).stem[5:]))
     if not files:
         print('sem prints')
         return

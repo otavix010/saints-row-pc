@@ -2,10 +2,11 @@
 //   - paths: the game in assets beside the executable unless game_data_root says otherwise, saves and caches in
 //     usuario; the options in PORT_OPCOES when given (the launcher keeps them at the port's root, which a new build
 //     leaves alone);
-//   - iso: game: and d: read the disc image in place, so the game folder needs only default.xex;
+//   - iso: game: and d: read the disc image in place, so the game folder needs only default.xex; the utility
+//     drive (cache:) as a folder for the games that hook their XMountUtilityDrive (cache_drive.h);
 //   - the Xenos GPU; the system's prompts (create the save, pick the storage) answered with their default button
 //     unless headless says otherwise, since they only take keyboard and mouse;
-//   - the port's picture options (port_options.h), the frame-rate counter (fps_overlay.h), the input lock
+//   - the frame rate (frame_rate.h), the port's picture options (port_options.h), the counter (fps_overlay.h), the input lock
 //     (input_lock.h), falha.log on a crash (crash_log.h);
 //   - development: PORT_PAD scripts a controller (pad_script.h), PORT_DUMP_IMAGE=file writes the loaded image for
 //     scripts/varrer_ponteiros.py.
@@ -29,8 +30,10 @@
 #include <rex/rex_app.h>
 #include <rex/system/xmemory.h>
 
+#include "cache_drive.h"
 #include "crash_log.h"
 #include "fps_overlay.h"
+#include "frame_rate.h"
 #include "input_lock.h"
 #include "pad_script.h"
 #include "port_options.h"
@@ -58,12 +61,14 @@ class PortApp : public rex::ReXApp {
       paths.user_data_root = exe_dir / "usuario";
       paths.cache_root = paths.user_data_root / "cache";
     }
+    port::g_user_data_root = paths.user_data_root;
   }
 
   void OnPreSetup(rex::RuntimeConfig& config) override {
     if (config.gpu_plugin.empty() && !config.graphics) config.gpu_plugin = "xenos";
     if (rex::cvar::GetFlagSource("headless") == rex::cvar::Source::kDefault)
       rex::cvar::SetFlagByName("headless", "true");
+    ApplyFrameRate();
     port_options::Apply();
     if (const char* script = std::getenv("PORT_PAD")) {
       config.input_factory = [script = std::string(script)](bool tool_mode)
