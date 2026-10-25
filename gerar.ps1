@@ -41,9 +41,11 @@ foreach ($linha in Get-Content (Join-Path $R 'config\jogo.txt') -Encoding UTF8) 
     if ($linha -match '^\s*([a-z0-9_]+)\s*=\s*(.*?)\s*$') { $JOGO[$Matches[1]] = $Matches[2] }
 }
 # the tools, pinned
-$SDK_VERSAO = '0.10.0.24'
-$SDK_URL = 'https://github.com/rexglue/rexglue-sdk/releases/download/nightly-20261002-bd833a2a/rexglue-sdk-0.10.0.24-dev.gbd833a2-win-amd64.zip'
-$SDK_SHA256 = '1e19d7ec9be0d9d7e1a0088a34a33b068d4dea520181e81318528ef3b37627e7'
+# the ReXGlue SDK of the nightly 0.10.0.24 (bd833a2) built with AMD FidelityFX (FSR, CAS), which the official one
+# lacks, and the ports' fixes (otavix010/rexglue-sdk-ffx: the 3D-as-2D texture at a resolution scale above 1x)
+$SDK_VERSAO = '0.10.0.24-ffx2'
+$SDK_URL = 'https://github.com/otavix010/rexglue-sdk-ffx/releases/download/v0.10.0.24-ffx2/rexglue-sdk-0.10.0.24-ffx2-win-amd64.zip'
+$SDK_SHA256 = '9aad4b00c032ebe79ac6487ab88c255f7902f37ed3899306f2692caf2820af4e'
 $LLVM_VERSAO = '23.1.3'
 $LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSAO/clang%2Bllvm-$LLVM_VERSAO-x86_64-pc-windows-msvc.tar.zst"
 $LLVM_SHA256 = '7e69dc07a4536b79ff24a651a2611990bf8eaab17ea560f1092707c4f31ba01d'
@@ -144,6 +146,10 @@ function Ler-Xex([string]$iso, [string]$destino) {
 }
 
 # ---------------------------------------------------------------------------- 1. ferramentas
+# done before but the tools this generator wants are not there (a newer SDK, a deleted folder): again
+if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe')) -or -not (Test-Path (Join-Path $LLVM 'bin\clang++.exe'))) {
+    Remove-Item (Join-Path $OUT '1_ferramentas.ok') -ErrorAction SilentlyContinue
+}
 Etapa 1 '1_ferramentas' {
     $vs = Achar-VS
     if (-not $vs) {
@@ -218,7 +224,9 @@ Etapa 3 '3_traducao' {
 Etapa 4 '4_compilar' {
     $vs = Achar-VS
     $build = Join-Path $R 'out\build\win-amd64-release'
-    Remove-Item -Recurse -Force $build -ErrorAction SilentlyContinue
+    # configured again (the SDK or the compiler may have changed), the rest of the folder kept: objects still good
+    # are reused, and nothing the game wrote there is lost
+    Remove-Item -Recurse -Force (Join-Path $build 'CMakeCache.txt'), (Join-Path $build 'CMakeFiles') -ErrorAction SilentlyContinue
     # a script of its own, one command a line: cmd reads each line when it runs it, so the PATH the Visual Studio's
     # environment sets is the one the next lines see (and the whole build's output goes to the step's log)
     $script = Join-Path $OUT 'compilar.cmd'
@@ -241,9 +249,10 @@ Etapa 5 '5_jogar' {
     $jogar = Join-Path $R 'jogar.cmd'
     $linhas = @(
         '@echo off',
-        "rem $($JOGO['titulo']): o port, lendo a .iso direto. Opções: $PROJETO.toml ao lado do exe, ou --nome valor.",
+        "rem $($JOGO['titulo']): o port, lendo a .iso direto. Opções: opcoes.toml aqui, ou --nome valor. Saves em saves\.",
         'chcp 65001 >nul',
-        "start `"`" `"%~dp0out\build\win-amd64-release\$PROJETO.exe`" --game_data_root `"%~dp0assets`" --iso `"$iso`" %*"
+        'set "PORT_OPCOES=%~dp0opcoes.toml"',
+        "start `"`" `"%~dp0out\build\win-amd64-release\$PROJETO.exe`" --game_data_root `"%~dp0assets`" --iso `"$iso`" --user_data_root `"%~dp0saves`" --cache_root `"%~dp0cache`" %*"
     )
     [IO.File]::WriteAllLines($jogar, $linhas, (New-Object Text.UTF8Encoding($false)))
     Msg "pronto: $jogar"
