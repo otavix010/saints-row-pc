@@ -59,9 +59,23 @@ $LLVM = Join-Path $FERRAMENTAS "llvm-$LLVM_VERSAO"
 
 function Msg($t) { Write-Host "[gerar] $t" -ForegroundColor Cyan }
 
+# a line into a step's log, the file shared: the launcher reads the log for its progress, and PowerShell 5.1's
+# Add-Content and Set-Content fail ("being used by another process") while any other process has it open; -Novo starts
+# the file over
+function Anotar([string]$arq, [string]$texto, [switch]$Novo) {
+    $b = [Text.Encoding]::UTF8.GetBytes("$texto`r`n")
+    for ($i = 0; ; $i++) {
+        try {
+            $fs = New-Object IO.FileStream($arq, $(if ($Novo) { 'Create' } else { 'Append' }), 'Write', 'ReadWrite')
+            try { $fs.Write($b, 0, $b.Length) } finally { $fs.Dispose() }
+            return
+        } catch [IO.IOException] { if ($i -ge 50) { throw }; Start-Sleep -Milliseconds 100 }
+    }
+}
+
 # runs a native command through cmd (stdout and stderr into the step's log); a failure throws with the log's end
 function Exec([string]$linha) {
-    Add-Content -Path $script:LOG -Value "`r`n> $linha" -Encoding UTF8
+    Anotar $script:LOG "`r`n> $linha"
     cmd /d /c "$linha >> `"$script:LOG`" 2>&1"
     if ($LASTEXITCODE -ne 0) {
         Write-Host (Get-Content $script:LOG -Tail 25 | Out-String) -ForegroundColor DarkGray
@@ -73,7 +87,7 @@ function Etapa([int]$n, [string]$nome, [scriptblock]$corpo) {
     if ((Test-Path $marca) -and ($RefazerDe -eq 0 -or $n -lt $RefazerDe)) { Msg "${nome}: já feita (pulando)"; return }
     Remove-Item $marca -ErrorAction SilentlyContinue
     $script:LOG = Join-Path $OUT "$nome.log"
-    Set-Content -Path $script:LOG -Value "== $nome $(Get-Date)" -Encoding UTF8
+    Anotar $script:LOG "== $nome $(Get-Date)" -Novo
     Msg "$nome ..."
     $t0 = Get-Date
     & $corpo
@@ -155,7 +169,7 @@ Etapa 1 '1_ferramentas' {
     if (-not $vs) {
         throw "falta o Visual Studio Build Tools com C++ e CMake. Instale com:`r`n  winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override `"--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended`""
     }
-    Add-Content $script:LOG "Visual Studio: $vs" -Encoding UTF8
+    Anotar $script:LOG "Visual Studio: $vs"
     New-Item -ItemType Directory -Force $FERRAMENTAS | Out-Null
     if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe'))) {
         $zip = Join-Path $FERRAMENTAS "rexglue-sdk-$SDK_VERSAO.zip"
