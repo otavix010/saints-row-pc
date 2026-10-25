@@ -29,6 +29,7 @@
 #include <rex/input/input_system.h>
 #include <rex/logging.h>
 #include <rex/rex_app.h>
+#include <rex/system/gpu_plugin.h>
 #include <rex/system/xmemory.h>
 
 #include "audio_guard.h"
@@ -68,6 +69,11 @@ class PortApp : public rex::ReXApp {
 
   void OnPreSetup(rex::RuntimeConfig& config) override {
     if (config.gpu_plugin.empty() && !config.graphics) config.gpu_plugin = "xenos";
+    // the GPU plugin loaded here, not after this hook as the runtime would: its options (resolution_scale,
+    // anisotropic_override, readback_resolve...) register when it loads, and the port's defaults below can only be set
+    // on registered options (the options file, the environment and the command line still win: they are applied as the
+    // plugin registers them). Should it fail, the runtime tries again and reports it.
+    if (!config.graphics && !config.gpu_plugin.empty()) config.graphics = rex::system::LoadGpuPlugin(config.gpu_plugin);
     if (rex::cvar::GetFlagSource("headless") == rex::cvar::Source::kDefault)
       rex::cvar::SetFlagByName("headless", "true");
     ApplyFrameRate();
@@ -85,6 +91,8 @@ class PortApp : public rex::ReXApp {
       };
     }
   }
+
+  void OnPostSetup() override { port_options::Log(); }
 
   void OnLoadXexImage(std::string& xex_image) override {
     (void)xex_image;

@@ -11,14 +11,30 @@
 #include <string>
 
 #include <rex/cvar.h>
+#include <rex/logging.h>
 
 REXCVAR_DEFINE_STRING(filtro, "fsr", "Port", "Scaling to the screen: fsr (AMD FSR 1), cas (AMD CAS) or bilinear");
 REXCVAR_DEFINE_INT32(nitidez, 70, "Port", "Sharpening of FSR or CAS, 0-100");
 
 namespace port_options {
 
-inline void SetUnlessChosen(const char* name, const std::string& value) {
+// false when the option is not registered (yet): a GPU plugin's options register as the plugin loads
+inline bool SetUnlessChosen(const char* name, const std::string& value) {
+  if (!rex::cvar::GetFlagInfo(name)) {
+    REXLOG_WARN("port option {}: not registered, default {} not applied", name, value);
+    return false;
+  }
   if (rex::cvar::GetFlagSource(name) == rex::cvar::Source::kDefault) rex::cvar::SetFlagByName(name, value);
+  return true;
+}
+
+// the picture options in force, once set up (PortApp::OnPostSetup)
+inline void Log() {
+  std::string line;
+  for (const char* name : {"fps", "video_mode_refresh_rate", "resolution_scale", "anisotropic_override", "present_effect",
+                           "present_fsr_sharpness_reduction", "swap_post_effect", "readback_resolve", "vsync"})
+    line += std::string(name) + "=" + rex::cvar::GetFlagByName(name) + " ";
+  REXLOG_INFO("port options: {}", line);
 }
 
 inline void Apply() {
