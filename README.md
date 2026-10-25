@@ -10,7 +10,7 @@ O jeito mais fácil de jogar é pelo [Otavix Launcher](https://github.com/otavix
 
 | | Xbox 360 | Port |
 |--|--|--|
-| Taxa de quadros | 30 fps | 30 fps (60 em estudo) |
+| Taxa de quadros | 30 fps | 30 ou **60** fps (quadros reais) |
 | Resolução interna | 720p | 720p, **1440p** ou 4K |
 | Ampliação para a tela | — | AMD FSR 1, AMD CAS ou bilinear, com nitidez ajustável |
 | Anti-aliasing | o do jogo | o do jogo, mais FXAA opcional |
@@ -36,7 +36,7 @@ Ficam em `saintsrow.toml` ao lado do executável, ou no arquivo indicado pela va
 
 | Opção | Valores | Padrão |
 |--|--|--|
-| `fps` | 30 | 30 |
+| `fps` | 30, 60 | 60 |
 | `resolution_scale` | 1 (720p), 2 (1440p), 3 (4K) | 2 |
 | `filtro` | `fsr`, `cas`, `bilinear` | `fsr` |
 | `nitidez` | 0 a 100 | 70 |
@@ -51,7 +51,8 @@ Ficam em `saintsrow.toml` ao lado do executável, ou no arquivo indicado pela va
 ## Como funciona
 
 - `config/funcoes.toml`: as funções que a análise estática não acha sozinha: chamadas só por ponteiro (nos dados ou com o endereço montado no código) ou fora do alcance da análise. `config/ganchos.toml`: os ganchos no código do jogo. `config/jogo.txt`: a versão do jogo que o gerador confere.
-- A taxa de quadros: o jogo usa uma XDK antiga, sem o trecho do intervalo de apresentação que os outros ports usam; o caminho para 60 fps ainda está em estudo.
+- `src/saintsrow_app.h`: a taxa de quadros. O jogo (de uma XDK antiga) apresenta um quadro a cada 2 vblanks e mede o jogo pelo relógio, não pelos quadros: o port acelera o vblank do console para o dobro do fps escolhido (60 fps = vblank a 120 Hz). Conferido: uma caminhada de 3 s chega ao mesmo ponto a 30 e a 60 fps, e a abertura segue no mesmo tempo.
+- `src/port/audio_guard.h` (base comum): na abertura, o áudio do jogo mandava um quadro para um cliente que ele mesmo tinha acabado de desregistrar, e a ReXGlue caía; agora o quadro é descartado.
 - `src/port/`: a base comum dos ports de Xbox 360 (a mesma em todos): opções de imagem, contador de fps, leitura da `.iso`, a trava que corrige uma corrida na entrada de controles da ReXGlue, `falha.log` com a pilha em caso de falha.
 
 Para desenvolver: `build.cmd` compila; `scripts/rodar.py` roda numa janela com prints, o fps de cada segundo e um controle roteirizado (`PORT_PAD`; para começar um jogo novo: `--pad 18:A,22:A,26:A,32:Y,36:A,40-240@4:A`); `scripts/tecla.py` aperta botões no jogo em execução; `scripts/varrer_ponteiros.py` e `scripts/desmontar.py` ajudam a achar funções.
