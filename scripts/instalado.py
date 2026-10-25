@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pilhas import find_pid  # noqa: E402
-from port import move_left  # noqa: E402
+from port import kill_from, move_left  # noqa: E402
 
 CAPTURE = r'C:\Users\otavi\fifast2-port\scripts\captura.ps1'
 
@@ -32,7 +32,7 @@ def main():
                PORT_FPS_LOG=str(build / 'fps.log'))
     if a.pad:
         env['PORT_PAD'] = a.pad
-    subprocess.run(['taskkill', '/F', '/IM', f'{a.exe}.exe'], capture_output=True)
+    kill_from(folder, f'{a.exe}.exe')
     time.sleep(2)
     subprocess.run(['cmd', '/c', str(folder / 'jogar.cmd')], env=env, cwd=folder)
     t0 = time.time()

@@ -2,6 +2,7 @@
 (never fullscreen; the disc image named in iso.txt, when there is one) and the test window on the left monitor."""
 import ctypes
 import os
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -12,6 +13,20 @@ GENERATED = ROOT / 'generated' / 'default'
 FUNCS = ROOT / 'config' / 'funcoes.toml'
 REXGLUE = ROOT.parent / 'rexglue-sdk' / 'win-amd64' / 'bin' / 'rexglue.exe'
 ISO_FILE = ROOT / 'iso.txt'
+
+
+def kill_from(folder, exe):
+    """ends the copies of exe that run from inside folder, and only those: never by name alone, which would also end
+    the player's own copy of the game (C:\\OtavixPorts) running at the same time"""
+    inside = str(Path(folder).resolve()).lower().rstrip('\\') + '\\'
+    out = subprocess.run(['powershell', '-NoProfile', '-Command',
+                          f"Get-CimInstance Win32_Process -Filter \"Name='{exe}'\" | "
+                          "ForEach-Object { \"$($_.ProcessId)|$($_.ExecutablePath)\" }"],
+                         capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        pid, _, path = line.partition('|')
+        if pid.strip().isdigit() and path.strip().lower().startswith(inside):
+            subprocess.run(['taskkill', '/F', '/PID', pid.strip()], capture_output=True)
 
 
 def test_env(log, **extra):
