@@ -24,6 +24,7 @@ DLSS e XeSS não entram: os dois precisam de vetores de movimento, que os jogos 
 ## Estado dos testes
 
 - Do início ao jogo livre a 60 fps; a velocidade do personagem a pé é a mesma a 30 e a 60.
+- 120 fps não entra: o jogo seguiria a velocidade certa (a caminhada percorre a mesma distância a 60 e a 120), mas não passa de uns 70 fps, porque a thread do runtime que traduz os comandos de GPU do Xbox 360 fica a 98% de um núcleo com a quantidade de desenhos da cidade.
 - Som funcionando, com o volume do port testado (25% dá 1/16 da potência, como previsto).
 
 ## Gerar à mão (sem o launcher)
