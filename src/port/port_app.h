@@ -6,7 +6,8 @@
 //     drive (cache:) as a folder for the games that hook their XMountUtilityDrive (cache_drive.h);
 //   - the Xenos GPU; the system's prompts (create the save, pick the storage) answered with their default button
 //     unless headless says otherwise, since they only take keyboard and mouse;
-//   - the frame rate (frame_rate.h), the port's picture options (port_options.h), the counter (fps_overlay.h), the input lock
+//   - the frame rate (frame_rate.h), the port's picture options (port_options.h), the counter (fps_overlay.h), the audio
+//     guard (audio_guard.h), the input lock
 //     (input_lock.h), falha.log on a crash (crash_log.h);
 //   - development: PORT_PAD scripts a controller (pad_script.h), PORT_DUMP_IMAGE=file writes the loaded image for
 //     scripts/varrer_ponteiros.py.
@@ -30,6 +31,7 @@
 #include <rex/rex_app.h>
 #include <rex/system/xmemory.h>
 
+#include "audio_guard.h"
 #include "cache_drive.h"
 #include "crash_log.h"
 #include "fps_overlay.h"
