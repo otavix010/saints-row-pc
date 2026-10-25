@@ -5,7 +5,8 @@ pressed as soon as two frames running show it.
 
     py -3 scripts/qte.py --filmar 6 [--folha 32]
     py -3 scripts/qte.py --jogar 600           presses the prompts for 10 minutes, the ones seen kept in qte/
-    py -3 scripts/qte.py --jogar 600 --ciclo   and goes round rodar.py's QTE cycle meanwhile (tecla.py --ciclo)"""
+    py -3 scripts/qte.py --jogar 600 --ciclo   and goes round rodar.py's QTE cycle meanwhile (tecla.py --ciclo)
+    py -3 scripts/qte.py --mirar 60            rapid fire aimed at what moves (Asura's Wrath's thrown rocks)"""
 import argparse
 import ctypes
 import ctypes.wintypes as wt
@@ -216,6 +217,62 @@ def play(seconds, with_cycle=False):
     cam.close()
 
 
+def _reticle(a):
+    """the centre of Asura's Wrath's aiming reticle (a purple ring) in a half-size frame, or None"""
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    ring = (b > r) & (r > 80) & (g < 56) & (b > 106)
+    ys, xs = np.nonzero(ring)
+    if len(ys) < 15:
+        return None
+    return float(np.median(xs)), float(np.median(ys))
+
+
+def aim(seconds, rest=(0.5, 0.3), follow=True):
+    """rapid fire (X held) with the reticle steered by the left stick onto what moves in the upper part of the screen
+    (Asura's Wrath's thrown rocks), or, with nothing moving, to rest (a point as fractions of the frame)"""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from tecla import press
+    cam = camera()
+    press('X', seconds)
+    prev, t0, steps = None, time.time(), 0
+    while time.time() - t0 < seconds:
+        a = np.asarray(cam.grab())[::2, ::2].astype(np.int16)
+        h, w = a.shape[:2]
+        at = _reticle(a)
+        gray = a.sum(-1)
+        target = (rest[0] * w, rest[1] * h)
+        if follow and prev is not None:
+            moving = np.abs(gray - prev) > 60
+            fire = (a[..., 0] > 200) & (a[..., 2] < 150)  # the shots, orange
+            moving &= ~fire
+            moving[:int(h * 0.42), :int(w * 0.5)] &= False  # the tutorial's banner
+            moving[int(h * 0.62):] = False  # Asura
+            if at:
+                x0, y0 = int(at[0]), int(at[1])
+                moving[max(y0 - 25, 0):y0 + 25, max(x0 - 25, 0):x0 + 25] = False
+            ys, xs = np.nonzero(moving)
+            if len(ys) > 30:
+                target = (float(np.median(xs)), float(np.median(ys)))
+        prev = gray
+        wait = 0.03
+        if at:
+            # one short pulse at a time, as long as the distance asks (full tilt moves the reticle fast)
+            dx, dy = target[0] - at[0], target[1] - at[1]
+            pulse = lambda d: min(max(abs(d) / 1500, 0.015), 0.05)
+            if abs(dx) > 6:
+                press('LX+' if dx > 0 else 'LX-', pulse(dx))
+                wait = max(wait, pulse(dx))
+            if abs(dy) > 6:
+                press('LY-' if dy > 0 else 'LY+', pulse(dy))
+                wait = max(wait, pulse(dy))
+            steps += 1
+            if steps % 25 == 0:
+                print(f'{time.time() - t0:6.1f} s  retículo {at[0] * 2:.0f},{at[1] * 2:.0f}  alvo {target[0] * 2:.0f},'
+                      f'{target[1] * 2:.0f}', flush=True)
+        time.sleep(wait + 0.03)
+    cam.close()
+
+
 def film(seconds, sheet):
     out = ROOT / 'filme'
     shutil.rmtree(out, ignore_errors=True)
@@ -246,8 +303,11 @@ def main():
     ap.add_argument('--folha', type=int, default=32)
     ap.add_argument('--jogar', type=float)
     ap.add_argument('--ciclo', action='store_true')
+    ap.add_argument('--mirar', type=float)
     a = ap.parse_args()
-    if a.jogar:
+    if a.mirar:
+        aim(a.mirar)
+    elif a.jogar:
         play(a.jogar, a.ciclo)
     else:
         film(a.filmar or 6, a.folha)

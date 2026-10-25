@@ -22,15 +22,15 @@ CAPTURE = r'C:\Users\otavi\fifast2-port\scripts\captura.ps1'
 
 def cycle(start, end):
     """every button, the triggers, both sticks together in the four directions and pulled apart or pushed together,
-    the left stick turning round both ways, B held (a dash), A then B held (a jump and a dive), the bumpers (an evade)
-    and a burst of A (getting up), round and round (22 s), for QTEs met unseen"""
-    period, out = 22.0, []
+    the left stick turning round both ways, B held (a dash), A then B held (a jump and a dive), the bumpers (an evade),
+    a burst of A (getting up) and X held (rapid fire), round and round (24 s), for QTEs met unseen"""
+    period, out = 24.0, []
     steps = [(0, 'A', 0.15), (0.5, 'B', 0.15), (1, 'X', 0.15), (1.5, 'Y', 0.15), (2, 'RT', 0.4),
              (2.5, 'LY-+RY-', 0.8), (3.5, 'LY++RY+', 0.8), (4.5, 'LX-+RX-', 0.8), (5.5, 'LX++RX+', 0.8),
              (6.5, 'LT+RT', 0.4), (8, 'LROT', 1.8), (10, 'LROT-', 1.8),
              (12, 'LX-+RX+', 1.0), (13.2, 'LX++RX-', 1.0), (14.4, 'LY++RY-', 0.7), (15.2, 'LY-+RY+', 0.7),
              (16.2, 'B', 1.4), (17.9, 'A', 0.15), (18.2, 'B', 1.4), (19.8, 'RB', 0.15), (20.3, 'LB', 0.15)]
-    steps += [(20.8 + i * 0.25, 'A', 0.08) for i in range(4)]
+    steps += [(20.8 + i * 0.25, 'A', 0.08) for i in range(4)] + [(21.8, 'X', 2.0)]
     steps += [(7 + i * 0.2, 'B', 0.1) for i in range(5)]  # a burst, for the mashing ones
     for at, button, hold in steps:
         out.append(f'{start + at:g}-{end:g}@{period:g}/{hold:g}:{button}')

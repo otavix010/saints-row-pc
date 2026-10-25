@@ -21,6 +21,11 @@ O jeito mais fácil de jogar é pelo [Otavix Launcher](https://github.com/otavix
 
 DLSS e XeSS não entram: os dois precisam de vetores de movimento, que os jogos de Xbox 360 não fornecem. O ganho de nitidez vem da resolução interna (supersampling de verdade), e a fluidez vem dos fps reais.
 
+## Estado dos testes
+
+- Do início ao jogo livre a 60 fps; a velocidade do personagem a pé é a mesma a 30 e a 60.
+- Som funcionando, com o volume do port testado (25% dá 1/16 da potência, como previsto).
+
 ## Gerar à mão (sem o launcher)
 
 Precisa do **Visual Studio 2022 Build Tools** com "Desenvolvimento para desktop com C++" e "C++ CMake tools for Windows". O gerador baixa o resto: o SDK da ReXGlue e o Clang (LLVM) portátil, numa pasta `_ferramentas` ao lado do port.
