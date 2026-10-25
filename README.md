@@ -4,6 +4,8 @@ Port do **Saints Row** (Xbox 360) por **recompilação estática**: o código Po
 
 **Nada do jogo vem neste repositório.** O port é gerado no seu PC a partir da sua própria cópia (a imagem `.iso` do disco). O código traduzido também é gerado aí e nunca é distribuído.
 
+O runtime vem de uma compilação própria da ReXGlue com o AMD FidelityFX e correções do port ([otavix010/rexglue-sdk-ffx](https://github.com/otavix010/rexglue-sdk-ffx)), porque a oficial não traz o FidelityFX. Entre as correções está a da escala de resolução no D3D12, que derrubava o jogo acima de 1x.
+
 O jeito mais fácil de jogar é pelo [Otavix Launcher](https://github.com/otavix010/otavix-launcher), que baixa este port, pede a sua `.iso`, gera tudo e cuida das opções.
 
 ## O que o port acrescenta
@@ -12,7 +14,7 @@ O jeito mais fácil de jogar é pelo [Otavix Launcher](https://github.com/otavix
 |--|--|--|
 | Taxa de quadros | 30 fps | 30 ou **60** fps (quadros reais) |
 | Resolução interna | 720p | 720p, **1440p** ou 4K |
-| Ampliação para a tela | — | AMD FSR 1, AMD CAS ou bilinear, com nitidez ajustável |
+| Ampliação para a tela | — | AMD FSR 1, AMD CAS, FSR 3 temporal (experimental) ou bilinear, com nitidez ajustável |
 | Anti-aliasing | o do jogo | o do jogo, mais FXAA opcional |
 | Filtro anisotrópico | o do jogo | até 16x |
 | Contador de fps | — | opcional, no canto da tela |
@@ -38,13 +40,16 @@ Ficam em `saintsrow.toml` ao lado do executável, ou no arquivo indicado pela va
 |--|--|--|
 | `fps` | 30, 60 | 60 |
 | `resolution_scale` | 1 (720p), 2 (1440p), 3 (4K) | 2 |
-| `filtro` | `fsr`, `cas`, `bilinear` | `fsr` |
+| `filtro` | `fsr`, `cas`, `fsr3` (temporal, experimental), `bilinear` | `fsr` |
 | `nitidez` | 0 a 100 | 70 |
 | `swap_post_effect` | `none`, `fxaa`, `fxaa_extreme` | `none` |
 | `anisotropic_override` | -1 (o do jogo), 3 (4x), 4 (8x), 5 (16x) | 5 |
 | `fullscreen` | `true`, `false` | `true` |
 | `monitor` | 0 (padrão), 1, 2... | 0 |
 | `mostrar_fps` | `true`, `false` | `false` |
+| `volume` | 0 a 100 | 100 |
+| `vibration` | `true`, `false` | `true` |
+| `zona_morta_esquerda`, `zona_morta_direita` | 0 a 50 (%) | 0 |
 | `user_language` | 1 inglês, 3 alemão, 4 francês, 5 espanhol, 6 italiano | 1 |
 | `iso` | caminho da `.iso` | — |
 
