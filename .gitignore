@@ -13,3 +13,5 @@ iso.txt
 __pycache__/
 folha*.png
 *.png
+filme/
+qte/
