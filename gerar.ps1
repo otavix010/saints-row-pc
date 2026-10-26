@@ -97,7 +97,13 @@ function Etapa([int]$n, [string]$nome, [scriptblock]$corpo) {
 function Baixar([string]$url, [string]$destino) {
     Msg "baixando $(Split-Path $destino -Leaf) ..."
     $tmp = "$destino.parcial"
-    Exec "curl.exe -L --fail --retry 3 -o `"$tmp`" `"$url`""
+    try { Exec "curl.exe -L --fail --retry 3 -o `"$tmp`" `"$url`"" }
+    catch {
+        # curl 35 (CRYPT_E_NO_REVOCATION_CHECK): a rede ou o antivírus do jogador não deixa o schannel consultar a
+        # revogação do certificado (report 47 do launcher); de novo sem essa consulta, o certificado ainda conferido
+        if ("$_" -notmatch 'código 35') { throw }
+        Exec "curl.exe -L --fail --retry 3 --ssl-no-revoke -o `"$tmp`" `"$url`""
+    }
     Move-Item -Force $tmp $destino
 }
 
