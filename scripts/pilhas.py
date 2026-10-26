@@ -178,8 +178,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--quadros', type=int, default=12)
     ap.add_argument('--todas', action='store_true', help='also the threads only waiting in the OS, without game frames')
+    ap.add_argument('--pid', type=int, help="this process instead of the first one with the port's exe name")
     a = ap.parse_args()
-    pid = find_pid(f'{NAME}.exe')
+    pid = a.pid or find_pid(f'{NAME}.exe')
     if not pid:
         sys.exit(f'{NAME}.exe não está rodando')
     process = k32.OpenProcess(PROCESS_ALL_ACCESS, False, pid)

@@ -11,3 +11,24 @@ longjmp_address = 0x82701790
 [[midasm_hook]]
 address = 0x825E56D0
 name = "PortFrame"
+
+# The audio worker pool's shutdown race (src/audio_pool.h): the hand-over of an audio pass to the worker, its end
+# (the li r3,0 after it lets go of its lock), and the shutdown before it sets the work event and after the worker's
+# thread is gone.
+[[midasm_hook]]
+address = 0x8260D180
+name = "PortAudioPassBegin"
+registers = ["r3"]
+return_on_true = true
+
+[[midasm_hook]]
+address = 0x8260D2CC
+name = "PortAudioPassEnd"
+
+[[midasm_hook]]
+address = 0x8260C67C
+name = "PortAudioPoolClosing"
+
+[[midasm_hook]]
+address = 0x8260C6CC
+name = "PortAudioPoolClosed"
