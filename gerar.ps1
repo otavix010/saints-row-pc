@@ -215,17 +215,32 @@ Etapa 1 '1_ferramentas' {
 }
 
 # ---------------------------------------------------------------------------- 2. jogo
+# the .iso picked again (moved, or a copy elsewhere): checked again and written down, the jogar.cmd made again; the
+# translated and compiled code is kept (the same default.xex, which the check makes sure of)
+$isoTxt = Join-Path $OUT 'iso.txt'
+if ($Iso -and (Test-Path $isoTxt)) {
+    $antes = Get-Content $isoTxt -Encoding UTF8 | Select-Object -First 1
+    if ($antes -and -not [string]::Equals([IO.Path]::GetFullPath($antes), [IO.Path]::GetFullPath($Iso),
+                                          [StringComparison]::OrdinalIgnoreCase)) {
+        Msg "a .iso mudou: $Iso"
+        Remove-Item (Join-Path $OUT '2_jogo.ok'), (Join-Path $OUT '5_jogar.ok') -ErrorAction SilentlyContinue
+    }
+}
 Etapa 2 '2_jogo' {
     if (-not $Iso) { throw 'falta a .iso do jogo (-Iso)' }
     if (-not (Test-Path -LiteralPath $Iso)) { throw "a .iso não existe: $Iso" }
     $assets = Join-Path $R 'assets'
     New-Item -ItemType Directory -Force $assets | Out-Null
     $xex = Join-Path $assets 'default.xex'
-    Ler-Xex $Iso $xex
-    $sha = (Get-FileHash $xex -Algorithm SHA1).Hash.ToLower()
+    # read beside it and checked first: a wrong .iso leaves the good default.xex in place
+    $lido = "$xex.novo"
+    Ler-Xex $Iso $lido
+    $sha = (Get-FileHash $lido -Algorithm SHA1).Hash.ToLower()
     if ($sha -ne $JOGO['sha1_xex']) {
+        Remove-Item $lido -ErrorAction SilentlyContinue
         throw "esta .iso não é a versão do port ($($JOGO['versao']), default.xex SHA-1 $($JOGO['sha1_xex']); a sua: $sha)"
     }
+    Move-Item -Force $lido $xex
     Set-Content -Path (Join-Path $OUT 'iso.txt') -Value $Iso -Encoding UTF8
 }
 
