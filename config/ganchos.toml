@@ -1,5 +1,12 @@
 # Saints Row: hooks in the game's code (src/)
 
+# The game's setjmp and longjmp (its CRT's, with the VMX128 registers): the runtime's own pair stands in for them.
+# Run as plain code, longjmp only returns to its caller with the registers of the setjmp, and the code after it runs
+# on a stale frame: in Dante's Inferno, the same CRT's pair closed the game on the first save statue (its JPEG
+# decoder's error exit).
+setjmp_address = 0x8275B080
+longjmp_address = 0x82701790
+
 # A frame handed to the GPU (right after the game's VdSwap): counts the frame rate (src/port/fps_overlay.h)
 [[midasm_hook]]
 address = 0x825E56D0

@@ -5,10 +5,12 @@
 // (Y+ is up); LROT RROT turn a stick round clockwise, twice a second, LROT- RROT- the other way; several at once
 // joined by +, as LY-+RY- (both sticks down). Seconds count from the app's start.
 // PORT_PAD_LIVE=file takes commands while the game runs: each line appended, "<seconds> <buttons>", holds them from then
-// (scripts/tecla.py writes them).
+// (scripts/tecla.py writes them); "<seconds> B@0.06/0.03" presses B every 0.06 s for that long, 0.03 s each. PORT_PAD_SLOT=n puts n still pads ahead of the script, so the script is player n+1
+// (a player's pad that came second: the profile is signed in on player one only).
 
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cmath>
@@ -28,11 +30,18 @@ class ScriptedPad final : public rex::input::InputDriver {
   explicit ScriptedPad(const std::string& script, const char* live = nullptr)
       : InputDriver(nullptr, 0), start_(Clock::now()), live_(live ? live : "") {
     Parse(script);
+    if (const char* slot = std::getenv("PORT_PAD_SLOT")) still_ = std::clamp(std::atoi(slot), 0, 3);
   }
 
   X_STATUS Setup() override { return X_STATUS_SUCCESS; }
 
   void EnumerateDevices(std::vector<rex::input::DeviceInfo>& out) override {
+    for (int i = 0; i < still_; ++i) {
+      rex::input::DeviceInfo still;
+      still.id = static_cast<rex::input::DeviceId>(kStill + i);
+      still.name = "Parado (PORT_PAD_SLOT)";
+      out.push_back(still);
+    }
     rex::input::DeviceInfo info;
     info.id = kDevice;
     info.name = "Roteiro (PORT_PAD)";
@@ -40,6 +49,10 @@ class ScriptedPad final : public rex::input::InputDriver {
   }
 
   X_RESULT GetDeviceState(rex::input::DeviceId id, rex::input::X_INPUT_STATE* out) override {
+    if (IsStill(id)) {
+      std::memset(out, 0, sizeof(*out));
+      return X_ERROR_SUCCESS;
+    }
     if (id != kDevice) return X_ERROR_DEVICE_NOT_CONNECTED;
     double t = std::chrono::duration<double>(Clock::now() - start_).count();
     ReadLive(t);
@@ -67,7 +80,7 @@ class ScriptedPad final : public rex::input::InputDriver {
 
   X_RESULT GetDeviceCapabilities(rex::input::DeviceId id, uint32_t,
                                  rex::input::X_INPUT_CAPABILITIES* caps) override {
-    if (id != kDevice) return X_ERROR_DEVICE_NOT_CONNECTED;
+    if (id != kDevice && !IsStill(id)) return X_ERROR_DEVICE_NOT_CONNECTED;
     if (caps) {
       std::memset(caps, 0, sizeof(*caps));
       caps->type = 0x01;      // gamepad
@@ -84,16 +97,22 @@ class ScriptedPad final : public rex::input::InputDriver {
   }
 
   X_RESULT SetDeviceVibration(rex::input::DeviceId id, rex::input::X_INPUT_VIBRATION*) override {
-    return id == kDevice ? X_ERROR_SUCCESS : X_ERROR_DEVICE_NOT_CONNECTED;
+    return id == kDevice || IsStill(id) ? X_ERROR_SUCCESS : X_ERROR_DEVICE_NOT_CONNECTED;
   }
 
   X_RESULT GetDeviceKeystroke(rex::input::DeviceId id, uint32_t, rex::input::X_INPUT_KEYSTROKE*) override {
-    return id == kDevice ? X_ERROR_EMPTY : X_ERROR_DEVICE_NOT_CONNECTED;
+    return id == kDevice || IsStill(id) ? X_ERROR_EMPTY : X_ERROR_DEVICE_NOT_CONNECTED;
   }
 
  private:
   using Clock = std::chrono::steady_clock;
   static constexpr rex::input::DeviceId kDevice = static_cast<rex::input::DeviceId>(0x50414453);  // "PADS"
+  static constexpr uint32_t kStill = 0x50414430;  // "PAD0", "PAD1", "PAD2"
+  bool IsStill(rex::input::DeviceId id) const {
+    uint32_t n = static_cast<uint32_t>(id) - kStill;
+    return n < static_cast<uint32_t>(still_);
+  }
+  int still_ = 0;
 
   struct Press {
     double from, to, every;
@@ -151,8 +170,16 @@ class ScriptedPad final : public rex::input::InputDriver {
       pos = nl + 1;
       double seconds = 0;
       char buttons[128] = {};
-      if (std::sscanf(line.c_str(), "%lf %127s", &seconds, buttons) == 2)
-        presses_.push_back({t, t + seconds, 0, buttons});
+      if (std::sscanf(line.c_str(), "%lf %127s", &seconds, buttons) != 2) continue;
+      // "<seconds> B@0.06/0.03": pressed every 0.06 s, held 0.03 s each (mashing a button)
+      Press p{t, t + seconds, 0, buttons};
+      if (size_t at = p.button.find('@'); at != std::string::npos) {
+        p.every = std::atof(p.button.c_str() + at + 1);
+        if (size_t slash = p.button.find('/', at); slash != std::string::npos)
+          p.hold = std::atof(p.button.c_str() + slash + 1);
+        p.button.resize(at);
+      }
+      presses_.push_back(p);
     }
   }
 

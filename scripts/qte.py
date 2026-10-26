@@ -11,6 +11,8 @@ import argparse
 import ctypes
 import ctypes.wintypes as wt
 import functools
+import io
+import os
 import shutil
 import sys
 import threading
@@ -63,7 +65,35 @@ class Camera:
         user32.ReleaseDC(None, self.screen)
 
 
+class FileCamera:
+    """the picture the port writes itself (PORT_CAPTURA, src/port/captura.h), for a window off every screen, where
+    PrintWindow sees nothing: laid out as the test window on the left monitor was (1080x640, the title bar and the
+    borders around), so the readers' places and sizes hold"""
+
+    def __init__(self, path):
+        self.path = Path(path)
+        self.w, self.h = 1080, 640
+
+    def grab(self):
+        for _ in range(50):
+            try:
+                picture = Image.open(io.BytesIO(self.path.read_bytes())).convert('RGB')
+                break
+            except (OSError, ValueError):  # being replaced, or not written yet
+                time.sleep(0.02)
+        else:
+            sys.exit(f'sem imagem em {self.path}')
+        frame = Image.new('RGB', (self.w, self.h))
+        frame.paste(picture.resize((1064, 599), Image.BILINEAR), (8, 31))
+        return frame
+
+    def close(self):
+        pass
+
+
 def camera():
+    if os.environ.get('PORT_CAPTURA'):
+        return FileCamera(os.environ['PORT_CAPTURA'])
     pid = find_pid(EXE.name)
     if not pid:
         sys.exit('o jogo não está rodando')

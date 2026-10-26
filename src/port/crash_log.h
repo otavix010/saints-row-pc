@@ -1,14 +1,19 @@
 // Fatal exceptions the runtime's own handler leaves alone go to falha.log beside the executable: the code, the
 // address and the stack as module+offset (scripts/pilha.py names the frames from the linker map and the runtime's
 // exports). Registered last, so the guest memory watches the runtime resolves never reach it; only logs, never handles.
+// So do the exits that raise no exception: abort() (an assert, the runtime's fatal errors, std::terminate, all of them
+// 0xC0000409 to the launcher) and std::terminate's exception, which reaches abort with its message.
 // Writes with a stack buffer and WriteFile: the process heap may be the thing that broke.
 
 #pragma once
 
 #include <windows.h>
 
+#include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <cwchar>
+#include <exception>
 
 namespace crash_log {
 
@@ -33,29 +38,9 @@ inline void Frame(HANDLE f, int i, DWORD64 pc) {
                                static_cast<unsigned long long>(pc - reinterpret_cast<DWORD64>(h))));
 }
 
-inline LONG CALLBACK Handler(EXCEPTION_POINTERS* ep) {
-  DWORD code = ep->ExceptionRecord->ExceptionCode;
-  bool fatal = code == EXCEPTION_ACCESS_VIOLATION || code == 0xC0000374 /* heap corruption */ ||
-               code == 0xC0000409 /* stack buffer overrun */ || code == EXCEPTION_ILLEGAL_INSTRUCTION ||
-               code == EXCEPTION_PRIV_INSTRUCTION || code == EXCEPTION_INT_DIVIDE_BY_ZERO;
-  if (!fatal || InterlockedIncrement(&g_count) > 8) return EXCEPTION_CONTINUE_SEARCH;
-  HANDLE f = CreateFileW(g_path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, 0,
-                         nullptr);
-  if (f == INVALID_HANDLE_VALUE) return EXCEPTION_CONTINUE_SEARCH;
-  SYSTEMTIME t;
-  GetLocalTime(&t);
-  char line[400];
-  Write(f, line, std::snprintf(line, sizeof line, "%02d:%02d:%02d.%03d thread %lu exception 0x%08lX", t.wHour,
-                               t.wMinute, t.wSecond, t.wMilliseconds, GetCurrentThreadId(), code));
-  if (code == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters >= 2) {
-    const ULONG_PTR* info = ep->ExceptionRecord->ExceptionInformation;
-    Write(f, line, std::snprintf(line, sizeof line, " (%s 0x%llx)", info[0] == 1 ? "write" : info[0] == 8 ? "exec" : "read",
-                                 static_cast<unsigned long long>(info[1])));
-  }
-  Write(f, "\r\n", 2);
+inline void Stack(HANDLE f, CONTEXT ctx) {
   ULONG_PTR low = 0, high = 0;
   GetCurrentThreadStackLimits(&low, &high);
-  CONTEXT ctx = *ep->ContextRecord;
   for (int i = 0; i < 48 && ctx.Rip; ++i) {
     Frame(f, i, ctx.Rip);
     DWORD64 base = 0;
@@ -70,8 +55,74 @@ inline LONG CALLBACK Handler(EXCEPTION_POINTERS* ep) {
     }
     if (ctx.Rsp < low || ctx.Rsp > high) break;
   }
+}
+
+// the entry's first line: the time, the thread and what happened
+inline HANDLE Begin(const char* what) {
+  HANDLE f = CreateFileW(g_path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, 0,
+                         nullptr);
+  if (f == INVALID_HANDLE_VALUE) return f;
+  SYSTEMTIME t;
+  GetLocalTime(&t);
+  char line[400];
+  Write(f, line, std::snprintf(line, sizeof line, "%02d:%02d:%02d.%03d thread %lu %s", t.wHour, t.wMinute, t.wSecond,
+                               t.wMilliseconds, GetCurrentThreadId(), what));
+  return f;
+}
+
+inline LONG CALLBACK Handler(EXCEPTION_POINTERS* ep) {
+  DWORD code = ep->ExceptionRecord->ExceptionCode;
+  bool fatal = code == EXCEPTION_ACCESS_VIOLATION || code == 0xC0000374 /* heap corruption */ ||
+               code == 0xC0000409 /* stack buffer overrun */ || code == EXCEPTION_ILLEGAL_INSTRUCTION ||
+               code == EXCEPTION_PRIV_INSTRUCTION || code == EXCEPTION_INT_DIVIDE_BY_ZERO;
+  if (!fatal || InterlockedIncrement(&g_count) > 8) return EXCEPTION_CONTINUE_SEARCH;
+  char what[64];
+  std::snprintf(what, sizeof what, "exception 0x%08lX", code);
+  HANDLE f = Begin(what);
+  if (f == INVALID_HANDLE_VALUE) return EXCEPTION_CONTINUE_SEARCH;
+  char line[400];
+  if (code == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters >= 2) {
+    const ULONG_PTR* info = ep->ExceptionRecord->ExceptionInformation;
+    Write(f, line, std::snprintf(line, sizeof line, " (%s 0x%llx)", info[0] == 1 ? "write" : info[0] == 8 ? "exec" : "read",
+                                 static_cast<unsigned long long>(info[1])));
+  }
+  Write(f, "\r\n", 2);
+  Stack(f, *ep->ContextRecord);
   CloseHandle(f);
   return EXCEPTION_CONTINUE_SEARCH;
+}
+
+// abort() raises SIGABRT first, on the thread that called it: the stack still holds the caller (an assert, the
+// runtime's fatal error, or std::terminate over the frame that threw)
+inline void OnAbort(int) {
+  if (InterlockedIncrement(&g_count) > 8) return;
+  HANDLE f = Begin("abort()\r\n");
+  if (f == INVALID_HANDLE_VALUE) return;
+  CONTEXT ctx;
+  RtlCaptureContext(&ctx);
+  Stack(f, ctx);
+  CloseHandle(f);
+}
+
+// std::terminate on the main thread: the exception's message first (the other threads keep the default, which
+// aborts, and OnAbort still writes their stack)
+inline void OnTerminate() {
+  char what[400] = "std::terminate";
+  if (std::exception_ptr e = std::current_exception()) {
+    try {
+      std::rethrow_exception(e);
+    } catch (const std::exception& x) {
+      std::snprintf(what, sizeof what, "std::terminate: %s", x.what());
+    } catch (...) {
+      std::snprintf(what, sizeof what, "std::terminate: not a std::exception");
+    }
+  }
+  HANDLE f = Begin(what);
+  if (f != INVALID_HANDLE_VALUE) {
+    Write(f, "\r\n", 2);
+    CloseHandle(f);
+  }
+  std::abort();
 }
 
 // falha.log beside the executable
@@ -81,6 +132,8 @@ inline void Install() {
   if (!n || !slash || slash - g_path + 10 >= MAX_PATH) return;
   std::wcscpy(slash + 1, L"falha.log");
   AddVectoredExceptionHandler(0, Handler);
+  std::signal(SIGABRT, OnAbort);
+  std::set_terminate(OnTerminate);
 }
 
 }  // namespace crash_log

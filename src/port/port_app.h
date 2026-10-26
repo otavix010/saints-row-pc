@@ -10,7 +10,7 @@
 //     guard (audio_guard.h), the input lock
 //     (input_lock.h), falha.log on a crash (crash_log.h);
 //   - development: PORT_PAD scripts a controller (pad_script.h), PORT_DUMP_IMAGE=file writes the loaded image for
-//     scripts/varrer_ponteiros.py.
+//     scripts/varrer_ponteiros.py, PORT_CAPTURA=file.bmp the game's picture a few times a second (captura.h).
 // A game's app derives from PortApp and adds its own hooks (its frame rate, its fixes).
 
 #pragma once
@@ -34,6 +34,7 @@
 
 #include "audio_guard.h"
 #include "cache_drive.h"
+#include "captura.h"
 #include "crash_log.h"
 #include "fps_overlay.h"
 #include "frame_rate.h"
@@ -93,7 +94,15 @@ class PortApp : public rex::ReXApp {
     }
   }
 
-  void OnPostSetup() override { port_options::Log(); }
+  void OnPostSetup() override {
+    port_options::Log();
+    if (const char* file = std::getenv("PORT_CAPTURA"); file && runtime()->graphics_system()) {
+      const char* ms = std::getenv("PORT_CAPTURA_MS");
+      captura_ = std::make_unique<captura::Captura>(runtime()->graphics_system(), port::FromUtf8(file).wstring(), ms ? std::atoi(ms) : 150);
+    }
+  }
+
+  void OnShutdown() override { captura_.reset(); }
 
   // the game's own icon on the window and the taskbar
   void OnPostLaunchModule(rex::system::XThread*) override {
@@ -132,4 +141,7 @@ class PortApp : public rex::ReXApp {
       std::fclose(f);
     }
   }
+
+ private:
+  std::unique_ptr<captura::Captura> captura_;
 };
