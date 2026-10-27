@@ -10,3 +10,4 @@ fps_original=30
 fps_padrao=60
 idiomas=1,4,3,5,6
 preset_4k=3
+fps_teto=60
