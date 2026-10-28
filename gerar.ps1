@@ -106,6 +106,24 @@ function Baixar([string]$url, [string]$destino) {
     }
     Move-Item -Force $tmp $destino
 }
+# a folder just unpacked into its place. Report 167: "Move-Item: acesso negado" on the LLVM, an antivirus still
+# scanning the new .exe files. Try again for a while, then copy and leave the source for a later clean-up.
+function Mover-Pasta([string]$origem, [string]$destino) {
+    for ($i = 1; $i -le 10; $i++) {
+        try { Move-Item -LiteralPath $origem $destino -ErrorAction Stop; return }
+        catch {
+            Anotar $script:LOG "Move-Item ($i/10): $_"
+            if (Test-Path -LiteralPath $destino) { Remove-Item -Recurse -Force -LiteralPath $destino -ErrorAction SilentlyContinue }
+            Start-Sleep -Seconds 3
+        }
+    }
+    Msg 'a pasta continua presa (antivírus?); copiando no lugar de mover ...'
+    Copy-Item -Recurse -LiteralPath $origem $destino -ErrorAction Stop
+}
+# a temporary file or folder; one an antivirus still holds stays behind and is removed on the next run
+function Apagar([string[]]$caminhos) {
+    foreach ($c in $caminhos) { Remove-Item -Recurse -Force -LiteralPath $c -ErrorAction SilentlyContinue }
+}
 
 # the Visual Studio with the C++ tools (MSVC's headers and libraries, the Windows SDK, CMake and Ninja)
 function Achar-VS {
@@ -185,8 +203,8 @@ Etapa 1 '1_ferramentas' {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
         Expand-Archive $zip $tmp
         Remove-Item -Recurse -Force $SDK -ErrorAction SilentlyContinue
-        Move-Item (Join-Path $tmp 'win-amd64') $SDK
-        Remove-Item -Recurse -Force $tmp, $zip
+        Mover-Pasta (Join-Path $tmp 'win-amd64') $SDK
+        Apagar $tmp, $zip
     }
     if (-not (Test-Path (Join-Path $LLVM 'bin\clang++.exe'))) {
         $zstd = Join-Path $FERRAMENTAS 'zstd\zstd.exe'
@@ -199,14 +217,14 @@ Etapa 1 '1_ferramentas' {
             Expand-Archive $zip $tmp
             New-Item -ItemType Directory -Force (Split-Path $zstd) | Out-Null
             Move-Item (Get-ChildItem $tmp -Recurse -Filter zstd.exe | Select-Object -First 1).FullName $zstd
-            Remove-Item -Recurse -Force $tmp, $zip
+            Apagar $tmp, $zip
         }
         $pacote = Join-Path $FERRAMENTAS "llvm-$LLVM_VERSAO.tar.zst"
         if (-not (Test-Path $pacote) -or (Get-FileHash $pacote -Algorithm SHA256).Hash -ne $LLVM_SHA256) { Baixar $LLVM_URL $pacote }
         if ((Get-FileHash $pacote -Algorithm SHA256).Hash -ne $LLVM_SHA256) { throw "o LLVM baixado não confere (SHA-256): $pacote" }
         $tmp = Join-Path $FERRAMENTAS 'llvm.tmp'
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
-        New-Item -ItemType Directory $tmp | Out-Null
+        New-Item -ItemType Directory -Force $tmp | Out-Null
         # only what a port's build runs: the compiler, the linker, the archiver and the compiler's own headers
         # (about 370 MB of the package's 4 GB)
         Msg 'extraindo o LLVM ...'
@@ -214,9 +232,9 @@ Etapa 1 '1_ferramentas' {
             ForEach-Object { "--include `"$_`"" }
         Exec "`"$zstd`" -dc --long=31 `"$pacote`" | `"$env:SystemRoot\System32\tar.exe`" -xf - -C `"$tmp`" $($quais -join ' ')"
         Remove-Item -Recurse -Force $LLVM -ErrorAction SilentlyContinue
-        Move-Item (Get-ChildItem $tmp -Directory | Select-Object -First 1).FullName $LLVM
+        Mover-Pasta (Get-ChildItem $tmp -Directory | Select-Object -First 1).FullName $LLVM
         if (-not (Test-Path (Join-Path $LLVM 'bin\clang++.exe'))) { throw 'o LLVM extraído não tem o clang++' }
-        Remove-Item -Recurse -Force $tmp, $pacote
+        Apagar $tmp, $pacote
     }
 }
 
