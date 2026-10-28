@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 28/10/2026 · d6e8d7d
+### pt
+- **"Acesso negado" ao preparar as ferramentas:** em alguns PCs o gerador parava com "Move-Item: O acesso ao caminho ... llvm.tmp ... foi negado", porque o antivírus ainda estava examinando o compilador recém-baixado. Agora o gerador espera e tenta de novo e, se continuar preso, copia os arquivos. Basta gerar de novo; o download não é repetido.
+### en
+- **"Access denied" while preparing the tools:** on some PCs the generator stopped with "Move-Item: Access to the path ... llvm.tmp ... is denied", because the antivirus was still scanning the freshly downloaded compiler. The generator now waits and tries again and, if it is still locked, copies the files. Just generate again; the download is not repeated.
+### es
+- **"Acceso denegado" al preparar las herramientas:** en algunos PC el generador se detenía con "Move-Item: Acceso denegado a la ruta ... llvm.tmp ...", porque el antivirus aún estaba revisando el compilador recién descargado. Ahora el generador espera y vuelve a intentarlo y, si sigue bloqueado, copia los archivos. Basta con generar de nuevo; la descarga no se repite.
+
 ## 27/10/2026 · 23bb933
 ### pt
 - **Pasta no lugar da .iso:** escolher a pasta onde a .iso está (mesmo numa subpasta) agora funciona; o gerador acha a .iso sozinho. Se a pasta não tiver uma .iso (por exemplo, o jogo já extraído ou no formato Games on Demand), aparece uma mensagem explicando o que escolher, em vez de "acesso negado".
