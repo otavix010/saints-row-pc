@@ -221,6 +221,22 @@ Etapa 1 '1_ferramentas' {
 }
 
 # ---------------------------------------------------------------------------- 2. jogo
+# a folder picked instead of the .iso (report 148: the folder a download was unpacked to): the one image in it, two
+# folders down at most; none there, a message saying what the port reads (an unpacked disc or a Games on Demand
+# folder is not an image)
+if ($Iso -and (Test-Path -LiteralPath $Iso -PathType Container)) {
+    $pasta = $Iso
+    $imagens = @(Get-ChildItem -LiteralPath $pasta -File -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Extension -in '.iso', '.xiso' })
+    if ($imagens.Count -eq 1) {
+        $Iso = $imagens[0].FullName
+        Msg "a .iso dentro da pasta escolhida: $Iso"
+    } elseif ($imagens.Count -gt 1) {
+        throw "a pasta escolhida tem $($imagens.Count) arquivos .iso; escolha o arquivo .iso do jogo (Escolher arquivo...): $(($imagens | ForEach-Object { $_.Name }) -join ', ')"
+    } else {
+        throw "a pasta escolhida não tem uma .iso: $pasta. O port lê a imagem do disco do Xbox 360 (um arquivo .iso, ou o .zip/.7z/.rar baixado com ela dentro). Uma pasta com o jogo extraído (default.xex) ou no formato Games on Demand não serve."
+    }
+}
 # the .iso picked again (moved, or a copy elsewhere): checked again and written down, the jogar.cmd made again; the
 # translated and compiled code is kept (the same default.xex, which the check makes sure of)
 $isoTxt = Join-Path $OUT 'iso.txt'
