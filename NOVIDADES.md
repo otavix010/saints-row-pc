@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 29/10/2026 · 12295d0
+### pt
+- **Jogo extraído do disco:** além da .iso, agora serve a pasta com os arquivos do disco já extraídos (a que tem o default.xex). Pode escolher essa pasta, uma subpasta dela (como a $SystemUpdate) ou a pasta de cima: o gerador acha o jogo, confere a versão e o port lê os arquivos direto dali.
+### en
+- **Game unpacked from its disc:** besides the .iso, the folder with the disc's files already unpacked (the one with default.xex) now works. Pick that folder, one inside it (such as $SystemUpdate) or the one above: the generator finds the game, checks its version, and the port reads the files right there.
+### es
+- **Juego extraído del disco:** además de la .iso, ahora sirve la carpeta con los archivos del disco ya extraídos (la que tiene el default.xex). Puedes elegir esa carpeta, una subcarpeta (como $SystemUpdate) o la carpeta de arriba: el generador encuentra el juego, comprueba la versión y el port lee los archivos directamente de ahí.
+
 ## 29/10/2026 · 0cf67cc
 ### pt
 - **Medidor de desempenho no F10:** o F10 agora mostra e esconde o medidor em qualquer configuração (antes só funcionava com "Mostrar fps" ou o medidor do launcher ligados). A linha traz fps, tempo de quadro (ms), uso e temperatura da CPU e da GPU, VRAM e RAM. Num processador sem sensor exposto pelo Windows (como os Ryzen de mesa), a temperatura da CPU aparece quando o MSI Afterburner está aberto.
