@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -31,6 +32,7 @@
 #include <rex/rex_app.h>
 #include <rex/system/gpu_plugin.h>
 #include <rex/system/xmemory.h>
+#include <rex/ui/window.h>
 
 #include "audio_guard.h"
 #include "cache_drive.h"
@@ -62,7 +64,15 @@ class PortApp : public rex::ReXApp {
     auto exe_dir = rex::filesystem::GetExecutableFolder();
     if (const char* options = std::getenv("PORT_OPCOES")) paths.config_path = port::FromUtf8(options);
     if (paths.game_data_root.empty()) paths.game_data_root = exe_dir / "assets";
-    if (paths.user_data_root == rex::filesystem::GetUserFolder() / GetName()) {
+    // an empty --iso from the launcher took "--user_data_root" for the disc and left its folder out (report 326): the
+    // launcher's saves folder at the port's root, three folders above the build
+    const std::string& iso = REXCVAR_GET(iso);
+    std::error_code ec;
+    if (iso.rfind("--", 0) == 0 && paths.user_data_root == rex::filesystem::GetUserFolder() / GetName() &&
+        std::filesystem::is_directory(exe_dir / ".." / ".." / ".." / "saves", ec)) {
+      paths.user_data_root = std::filesystem::weakly_canonical(exe_dir / ".." / ".." / ".." / "saves", ec);
+      paths.cache_root = paths.user_data_root.parent_path() / "cache";
+    } else if (paths.user_data_root == rex::filesystem::GetUserFolder() / GetName()) {
       paths.user_data_root = exe_dir / "usuario";
       paths.cache_root = paths.user_data_root / "cache";
     }
@@ -109,9 +119,24 @@ class PortApp : public rex::ReXApp {
     port::SetWindowIconFromTitle(runtime()->kernel_state(), app_context());
   }
 
+  // the disc image: the iso option, else the one the generator made the game from (out/gerar/iso.txt, two folders
+  // above the build), for a game the launcher keeps no disc for (report 326: made by the generator alone, the launcher
+  // passed an empty --iso and the next argument was taken for it)
+  static std::string IsoPath() {
+    std::string iso = REXCVAR_GET(iso);
+    if (!iso.empty() && iso.rfind("--", 0) != 0) return iso;
+    std::ifstream f(rex::filesystem::GetExecutableFolder() / ".." / ".." / "gerar" / "iso.txt", std::ios::binary);
+    std::string line;
+    std::getline(f, line);
+    if (line.rfind("\xEF\xBB\xBF", 0) == 0) line.erase(0, 3);  // PowerShell's UTF-8 mark
+    while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+    if (!line.empty()) REXLOG_INFO("iso: none given ('{}'); the generator's: {}", iso, line);
+    return line;
+  }
+
   void OnLoadXexImage(std::string& xex_image) override {
     (void)xex_image;
-    const std::string& iso = REXCVAR_GET(iso);
+    const std::string iso = IsoPath();
     if (iso.empty()) return;
     constexpr const char* kMount = "\\Device\\Cdrom0";
     auto* fs = runtime()->file_system();
@@ -128,8 +153,12 @@ class PortApp : public rex::ReXApp {
   }
 
   void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
-    // the game's own counter, or the launcher's meter; lives as long as the drawer
-    if (REXCVAR_GET(mostrar_fps) || port_perf::OsdWanted()) new FpsOverlay(drawer);
+    // the counter and the meter, hidden until F10 unless an option asks for it at the start (reports 307, 327: with
+    // both options off, F10 did nothing); lives as long as the drawer
+    new FpsOverlay(drawer);
+    // the mouse pointer hides after a moment still over the game, and comes back when it moves (reports 307, 327:
+    // the runtime only hides it while the mouse plays the game, so it stayed over the picture)
+    if (window()) window()->SetCursorVisibility(rex::ui::Window::CursorVisibility::kAutoHidden);
   }
 
   void OnPostLoadXexImage() override {

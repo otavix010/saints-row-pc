@@ -44,7 +44,11 @@ foreach ($linha in Get-Content (Join-Path $R 'config\jogo.txt') -Encoding UTF8) 
 # the ReXGlue SDK of the nightly 0.10.0.24 (bd833a2) built with AMD FidelityFX (FSR, CAS), which the official one
 # lacks, and the ports' fixes (otavix010/rexglue-sdk-ffx: the 3D-as-2D texture at a resolution scale above 1x)
 $SDK_VERSAO = '0.10.0.24-ffx2'
-$SDK_URL = 'https://github.com/otavix010/rexglue-sdk-ffx/releases/download/v0.10.0.24-ffx2/rexglue-sdk-0.10.0.24-ffx2-win-amd64.zip'
+# the launcher's own server first: since 28/10/2026 the GitHub account is suspended and its releases answer 404
+# (reports 243, 262, 282, 300, 305, 315)
+$SDK_URLS = @(
+    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/rexglue-sdk-ffx/v0.10.0.24-ffx2/rexglue-sdk-0.10.0.24-ffx2-win-amd64.zip',
+    'https://github.com/otavix010/rexglue-sdk-ffx/releases/download/v0.10.0.24-ffx2/rexglue-sdk-0.10.0.24-ffx2-win-amd64.zip')
 $SDK_SHA256 = '9aad4b00c032ebe79ac6487ab88c255f7902f37ed3899306f2692caf2820af4e'
 $LLVM_VERSAO = '23.1.3'
 $LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSAO/clang%2Bllvm-$LLVM_VERSAO-x86_64-pc-windows-msvc.tar.zst"
@@ -105,6 +109,19 @@ function Baixar([string]$url, [string]$destino) {
         Exec "curl.exe -L --fail --retry 3 --ssl-no-revoke -o `"$tmp`" `"$url`""
     }
     Move-Item -Force $tmp $destino
+}
+# the first of the addresses that gives the file with this SHA-256; one that fails or gives another file is skipped
+function Baixar-De([string[]]$urls, [string]$destino, [string]$sha256) {
+    foreach ($u in $urls) {
+        try {
+            Baixar $u $destino
+            if ((Get-FileHash $destino -Algorithm SHA256).Hash -eq $sha256) { return }
+            Anotar $script:LOG "SHA-256 diferente: $u"
+        }
+        catch { Anotar $script:LOG "falhou: $u ($_)" }
+        Msg 'tentando o próximo endereço ...'
+    }
+    throw "não deu para baixar $(Split-Path $destino -Leaf) de nenhum endereço (veja a internet ou o antivírus)"
 }
 # a folder just unpacked into its place. Report 167: "Move-Item: acesso negado" on the LLVM, an antivirus still
 # scanning the new .exe files. Try again for a while, then copy and leave the source for a later clean-up.
@@ -197,7 +214,7 @@ Etapa 1 '1_ferramentas' {
     New-Item -ItemType Directory -Force $FERRAMENTAS | Out-Null
     if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe'))) {
         $zip = Join-Path $FERRAMENTAS "rexglue-sdk-$SDK_VERSAO.zip"
-        if (-not (Test-Path $zip) -or (Get-FileHash $zip -Algorithm SHA256).Hash -ne $SDK_SHA256) { Baixar $SDK_URL $zip }
+        if (-not (Test-Path $zip) -or (Get-FileHash $zip -Algorithm SHA256).Hash -ne $SDK_SHA256) { Baixar-De $SDK_URLS $zip $SDK_SHA256 }
         if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $SDK_SHA256) { throw "o SDK baixado não confere (SHA-256): $zip" }
         $tmp = Join-Path $FERRAMENTAS 'sdk.tmp'
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue

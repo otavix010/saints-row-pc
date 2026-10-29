@@ -14,4 +14,8 @@ struct Stats {
 // the last reading, a second old at most; shown keeps the readings going, and not shown for a while lets them rest
 Stats Latest(bool shown);
 
+// F10 just pressed, with a window of this process in front: the key's state polled at each call (a frame), as the
+// other Otavix ports do, so that it works whatever takes the window's key events
+bool F10Pressed();
+
 }  // namespace port::osd

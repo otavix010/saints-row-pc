@@ -1,7 +1,9 @@
 // The on-screen meter's numbers that come from Windows (fps_overlay.h), read once a second on a thread of their own,
 // and only while the meter is on screen, so that no frame of the game waits for them:
 //   - the processor: the system's use (GetSystemTimes) and the hottest thermal zone (the "Thermal Zone Information"
-//     counters, in tenths of a kelvin; some desktops have none, and then it shows --);
+//     counters, in tenths of a kelvin); many desktops have none (the Ryzen ones: only a driver reads the sensor), and
+//     then the "CPU temperature" of MSI Afterburner, when it runs (its monitoring shared memory, no driver of ours);
+//     with neither, it is left out;
 //   - the graphics card the runtime takes (the first hardware adapter): the busiest of its 3D engines, the counter
 //     Task Manager shows ("GPU Engine", only the instances of that adapter's LUID: a laptop's other GPU is left out),
 //     its temperature (D3DKMTQueryAdapterInfo, the adapter's performance data, tenths of a degree: Task Manager's too,
@@ -23,6 +25,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <cwchar>
 #include <cwctype>
 #include <map>
@@ -80,8 +83,51 @@ bool Values(PDH_HCOUNTER counter, std::vector<char>& buffer, std::vector<std::pa
   return true;
 }
 
+// MSI Afterburner's "CPU temperature" (MAHMSharedMemory.h, version 2: a header of dwSignature 'MAHM', dwVersion,
+// dwHeaderSize, dwNumEntries, dwEntrySize, ...; each entry's float data at 1300, dwGpu at 1316 and dwSrcId at 1320);
+// -1 when it does not run. The whole processor's entry has dwGpu 0xFFFFFFFF, the cores' entries their index.
+float AfterburnerCpuTemp() {
+  HANDLE map = OpenFileMappingW(FILE_MAP_READ, FALSE, L"MAHMSharedMemory");
+  if (!map) return -1;
+  float temp = -1;
+  if (const auto* base = static_cast<const uint8_t*>(MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0))) {
+    MEMORY_BASIC_INFORMATION region{};
+    size_t size = VirtualQuery(base, &region, sizeof(region)) ? region.RegionSize : 0;
+    uint32_t h[5] = {};
+    if (size >= sizeof(h)) std::memcpy(h, base, sizeof(h));
+    constexpr uint32_t kSignature = 0x4D41484D, kCpuTemperature = 0x80, kWholeCpu = 0xFFFFFFFF;
+    if (h[0] == kSignature && h[1] >= 0x20000 && h[4] >= 1324) {
+      for (uint32_t i = 0; i < h[3]; ++i) {
+        size_t at = size_t(h[2]) + size_t(i) * h[4];
+        if (at + 1324 > size) break;
+        float data;
+        uint32_t gpu, source;
+        std::memcpy(&data, base + at + 1300, 4);
+        std::memcpy(&gpu, base + at + 1316, 4);
+        std::memcpy(&source, base + at + 1320, 4);
+        if (source != kCpuTemperature || !(data > 0 && data < 150)) continue;
+        if (gpu == kWholeCpu) {
+          temp = data;
+          break;
+        }
+        temp = std::max(temp, data);  // no whole-processor entry: the hottest core
+      }
+    }
+    UnmapViewOfFile(base);
+  }
+  CloseHandle(map);
+  return temp;
+}
+
 void Run() {
+  // the processor's use is the difference between two readings: the first one now, so the meter has it a second in
   uint64_t idle0 = 0, kernel0 = 0, user0 = 0;
+  FILETIME idle, kernel, user;
+  if (GetSystemTimes(&idle, &kernel, &user)) {
+    idle0 = Ticks(idle);
+    kernel0 = Ticks(kernel);
+    user0 = Ticks(user);
+  }
   // the adapter: DXGI for its memory and its LUID
   IDXGIAdapter3* adapter = nullptr;
   LUID luid{};
@@ -129,7 +175,6 @@ void Run() {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     if (!g_wanted.load(std::memory_order_relaxed)) continue;
     Stats s;
-    FILETIME idle, kernel, user;
     if (GetSystemTimes(&idle, &kernel, &user)) {
       uint64_t di = Ticks(idle) - idle0, dk = Ticks(kernel) - kernel0, du = Ticks(user) - user0;
       if (idle0 && dk + du > 0) s.cpu = float(100.0 * double(dk + du - di) / double(dk + du));
@@ -160,6 +205,7 @@ void Run() {
         s.cpu_temp = float(hottest);
       }
     }
+    if (s.cpu_temp < 0) s.cpu_temp = AfterburnerCpuTemp();
     if (kmt) {
       KmtAdapterPerfData perf{};
       KmtQueryInfo q{opened.adapter, kAdapterPerfData, &perf, UINT(sizeof(perf))};
@@ -182,6 +228,17 @@ void Run() {
 }
 
 }  // namespace
+
+bool F10Pressed() {
+  static bool was_down = false;
+  bool down = (GetAsyncKeyState(VK_F10) & 0x8000) != 0;
+  bool pressed = down && !was_down;
+  was_down = down;
+  if (!pressed) return false;
+  DWORD pid = 0;
+  GetWindowThreadProcessId(GetForegroundWindow(), &pid);
+  return pid == GetCurrentProcessId();
+}
 
 Stats Latest(bool shown) {
   g_wanted.store(shown, std::memory_order_relaxed);
