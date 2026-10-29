@@ -4,6 +4,23 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 29/10/2026 · 0cf67cc
+### pt
+- **Medidor de desempenho no F10:** o F10 agora mostra e esconde o medidor em qualquer configuração (antes só funcionava com "Mostrar fps" ou o medidor do launcher ligados). A linha traz fps, tempo de quadro (ms), uso e temperatura da CPU e da GPU, VRAM e RAM. Num processador sem sensor exposto pelo Windows (como os Ryzen de mesa), a temperatura da CPU aparece quando o MSI Afterburner está aberto.
+- **Cursor do mouse:** some depois de um instante parado sobre o jogo e volta quando o mouse se mexe.
+- **Download do gerador:** as ferramentas do port agora vêm do servidor do Otavix Launcher; o gerador não para mais no erro 404 ao preparar as ferramentas.
+- **Disco não encontrado:** um jogo gerado fora do launcher podia abrir com erro de disco; agora o port usa a .iso com que foi gerado, e os saves continuam na pasta certa.
+### en
+- **Performance meter on F10:** F10 now shows and hides the meter with any settings (before, it only worked with "Show fps" or the launcher's meter on). The line has fps, frame time (ms), CPU and GPU use and temperature, VRAM and RAM. On a processor whose sensor Windows does not expose (such as desktop Ryzens), the CPU temperature shows while MSI Afterburner is open.
+- **Mouse cursor:** it hides after a moment still over the game and comes back when the mouse moves.
+- **Generator download:** the port's tools now come from the Otavix Launcher's server; the generator no longer stops with a 404 error while preparing the tools.
+- **Disc not found:** a game generated outside the launcher could open with a disc error; the port now uses the .iso it was generated from, and the saves stay in the right folder.
+### es
+- **Medidor de rendimiento en F10:** F10 ahora muestra y oculta el medidor con cualquier configuración (antes solo funcionaba con "Mostrar fps" o el medidor del launcher activados). La línea trae fps, tiempo de fotograma (ms), uso y temperatura de la CPU y la GPU, VRAM y RAM. En un procesador cuyo sensor Windows no expone (como los Ryzen de escritorio), la temperatura de la CPU aparece con MSI Afterburner abierto.
+- **Cursor del ratón:** se oculta tras un momento quieto sobre el juego y vuelve al mover el ratón.
+- **Descarga del generador:** las herramientas del port ahora vienen del servidor de Otavix Launcher; el generador ya no se detiene con el error 404 al preparar las herramientas.
+- **Disco no encontrado:** un juego generado fuera del launcher podía abrir con error de disco; ahora el port usa la .iso con la que se generó, y las partidas guardadas siguen en la carpeta correcta.
+
 ## 28/10/2026 · d6e8d7d
 ### pt
 - **"Acesso negado" ao preparar as ferramentas:** em alguns PCs o gerador parava com "Move-Item: O acesso ao caminho ... llvm.tmp ... foi negado", porque o antivírus ainda estava examinando o compilador recém-baixado. Agora o gerador espera e tenta de novo e, se continuar preso, copia os arquivos. Basta gerar de novo; o download não é repetido.
