@@ -25,6 +25,7 @@
 #include <rex/cvar.h>
 #include <rex/filesystem.h>
 #include <rex/filesystem/devices/disc_image_device.h>
+#include <rex/filesystem/devices/host_path_device.h>
 #include <rex/filesystem/vfs.h>
 #include <rex/input/device_assignment.h>
 #include <rex/input/input_system.h>
@@ -52,6 +53,11 @@ namespace port {
 
 inline std::filesystem::path FromUtf8(const char* s) {
   return std::filesystem::path(reinterpret_cast<const char8_t*>(s));
+}
+
+inline std::string ToUtf8(const std::filesystem::path& p) {
+  std::u8string u = p.u8string();
+  return std::string(u.begin(), u.end());
 }
 
 }  // namespace port
@@ -119,19 +125,41 @@ class PortApp : public rex::ReXApp {
     port::SetWindowIconFromTitle(runtime()->kernel_state(), app_context());
   }
 
-  // the disc image: the iso option, else the one the generator made the game from (out/gerar/iso.txt, two folders
-  // above the build), for a game the launcher keeps no disc for (report 326: made by the generator alone, the launcher
-  // passed an empty --iso and the next argument was taken for it)
-  static std::string IsoPath() {
-    std::string iso = REXCVAR_GET(iso);
-    if (!iso.empty() && iso.rfind("--", 0) != 0) return iso;
+  // what the generator made the game from (out/gerar/iso.txt, two folders above the build): the disc image or the
+  // unpacked game's folder
+  static std::string GeneratorIso() {
     std::ifstream f(rex::filesystem::GetExecutableFolder() / ".." / ".." / "gerar" / "iso.txt", std::ios::binary);
     std::string line;
     std::getline(f, line);
     if (line.rfind("\xEF\xBB\xBF", 0) == 0) line.erase(0, 3);  // PowerShell's UTF-8 mark
     while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+    return line;
+  }
+
+  // the disc: the iso option, else the generator's, for a game the launcher keeps no disc for (report 326: made by
+  // the generator alone, the launcher passed an empty --iso and the next argument was taken for it)
+  static std::string IsoPath() {
+    std::string iso = REXCVAR_GET(iso);
+    // a folder ending with its separator, quoted without doubling it ("F:\"): the quote came in with the path
+    while (!iso.empty() && iso.back() == '"') iso.pop_back();
+    if (!iso.empty() && iso.rfind("--", 0) != 0) return iso;
+    std::string line = GeneratorIso();
     if (!line.empty()) REXLOG_INFO("iso: none given ('{}'); the generator's: {}", iso, line);
     return line;
+  }
+
+  // the game unpacked from its disc (report 214): the folder with default.xex at the top, the one given or one of the
+  // two above it (a folder of the disc picked, as its $SystemUpdate), else the one the generator found; empty if none
+  static std::filesystem::path UnpackedGame(const std::filesystem::path& folder) {
+    std::error_code ec;
+    std::filesystem::path at = folder;
+    for (int i = 0; i <= 2 && !at.empty(); ++i, at = at.parent_path()) {
+      if (std::filesystem::is_regular_file(at / "default.xex", ec)) return at;
+      if (at == at.parent_path()) break;
+    }
+    std::filesystem::path made = port::FromUtf8(GeneratorIso().c_str());
+    if (!made.empty() && std::filesystem::is_regular_file(made / "default.xex", ec)) return made;
+    return {};
   }
 
   void OnLoadXexImage(std::string& xex_image) override {
@@ -140,7 +168,19 @@ class PortApp : public rex::ReXApp {
     if (iso.empty()) return;
     constexpr const char* kMount = "\\Device\\Cdrom0";
     auto* fs = runtime()->file_system();
-    auto disc = std::make_unique<rex::filesystem::DiscImageDevice>(kMount, port::FromUtf8(iso.c_str()));
+    std::error_code ec;
+    std::filesystem::path path = port::FromUtf8(iso.c_str());
+    std::unique_ptr<rex::filesystem::Device> disc;
+    if (std::filesystem::is_directory(path, ec)) {
+      path = UnpackedGame(path);
+      if (path.empty()) {
+        REXLOG_ERROR("iso: {} is a folder without the game (default.xex); playing from the game folder", iso);
+        return;
+      }
+      disc = std::make_unique<rex::filesystem::HostPathDevice>(kMount, path, true);
+    } else {
+      disc = std::make_unique<rex::filesystem::DiscImageDevice>(kMount, path);
+    }
     if (!disc->Initialize() || !fs->RegisterDevice(std::move(disc))) {
       REXLOG_ERROR("iso: could not read {}; playing from the game folder", iso);
       return;
@@ -149,7 +189,7 @@ class PortApp : public rex::ReXApp {
       fs->UnregisterSymbolicLink(link);
       fs->RegisterSymbolicLink(link, kMount);
     }
-    REXLOG_INFO("iso: game: and d: read {}", iso);
+    REXLOG_INFO("iso: game: and d: read {}", port::ToUtf8(path));
   }
 
   void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {

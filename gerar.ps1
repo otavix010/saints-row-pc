@@ -13,7 +13,7 @@
   Os logs de cada etapa ficam em out\gerar\. O jogo e a versão esperada estão em config\jogo.txt.
 
 .PARAMETER Iso
-  A .iso do jogo (Xbox 360).
+  A .iso do jogo (Xbox 360), ou a pasta com o jogo extraído do disco (default.xex).
 .PARAMETER RefazerDe
   Refaz a partir desta etapa (por exemplo 3 depois de uma versão nova do port).
 .PARAMETER Jobs
@@ -155,6 +155,10 @@ function Achar-VS {
 # The volume descriptor sits 0x10000 into the game partition, which starts at one of these offsets
 # (a trimmed xiso, XGD1, XGD2, XGD3).
 function Ler-Xex([string]$iso, [string]$destino) {
+    if (Test-Path -LiteralPath $iso -PathType Container) {
+        Copy-Item -LiteralPath (Join-Path $iso 'default.xex') $destino -Force
+        return
+    }
     $f = [IO.File]::OpenRead($iso)
     try {
         $r = New-Object IO.BinaryReader($f)
@@ -257,19 +261,35 @@ Etapa 1 '1_ferramentas' {
 
 # ---------------------------------------------------------------------------- 2. jogo
 # a folder picked instead of the .iso (report 148: the folder a download was unpacked to): the one image in it, two
-# folders down at most; none there, a message saying what the port reads (an unpacked disc or a Games on Demand
-# folder is not an image)
+# folders down at most; else the game unpacked from its disc (report 214: the files of the disc, default.xex at the
+# top), the folder picked, one of the two above it (a folder of the disc picked, as its $SystemUpdate) or one two
+# folders down at most; neither, a message saying what the port reads (a Games on Demand folder is neither)
+function Achar-Extraido([string]$pasta) {
+    $acima = $pasta
+    for ($i = 0; $i -le 2 -and $acima; $i++) {
+        if (Test-Path -LiteralPath (Join-Path $acima 'default.xex') -PathType Leaf) { return @($acima) }
+        $acima = [IO.Path]::GetDirectoryName($acima)
+    }
+    return @(Get-ChildItem -LiteralPath $pasta -File -Recurse -Depth 2 -Filter 'default.xex' -ErrorAction SilentlyContinue |
+             ForEach-Object { $_.DirectoryName })
+}
 if ($Iso -and (Test-Path -LiteralPath $Iso -PathType Container)) {
     $pasta = $Iso
     $imagens = @(Get-ChildItem -LiteralPath $pasta -File -Recurse -Depth 2 -ErrorAction SilentlyContinue |
                  Where-Object { $_.Extension -in '.iso', '.xiso' })
+    $extraidos = @(if ($imagens.Count -eq 0) { Achar-Extraido $pasta })
     if ($imagens.Count -eq 1) {
         $Iso = $imagens[0].FullName
         Msg "a .iso dentro da pasta escolhida: $Iso"
     } elseif ($imagens.Count -gt 1) {
         throw "a pasta escolhida tem $($imagens.Count) arquivos .iso; escolha o arquivo .iso do jogo (Escolher arquivo...): $(($imagens | ForEach-Object { $_.Name }) -join ', ')"
+    } elseif ($extraidos.Count -eq 1) {
+        $Iso = $extraidos[0]
+        Msg "o jogo extraído do disco: $Iso"
+    } elseif ($extraidos.Count -gt 1) {
+        throw "a pasta escolhida tem $($extraidos.Count) jogos extraídos (default.xex); escolha a pasta do jogo: $($extraidos -join ', ')"
     } else {
-        throw "a pasta escolhida não tem uma .iso: $pasta. O port lê a imagem do disco do Xbox 360 (um arquivo .iso, ou o .zip/.7z/.rar baixado com ela dentro). Uma pasta com o jogo extraído (default.xex) ou no formato Games on Demand não serve."
+        throw "a pasta escolhida não tem uma .iso nem o jogo extraído (default.xex): $pasta. O port lê a imagem do disco do Xbox 360 (um arquivo .iso, ou o .zip/.7z/.rar baixado com ela dentro) ou a pasta com os arquivos do disco extraídos. Uma pasta no formato Games on Demand não serve."
     }
 }
 # the .iso picked again (moved, or a copy elsewhere): checked again and written down, the jogar.cmd made again; the
@@ -285,7 +305,7 @@ if ($Iso -and (Test-Path $isoTxt)) {
 }
 Etapa 2 '2_jogo' {
     if (-not $Iso) { throw 'falta a .iso do jogo (-Iso)' }
-    if (-not (Test-Path -LiteralPath $Iso)) { throw "a .iso não existe: $Iso" }
+    if (-not (Test-Path -LiteralPath $Iso)) { throw "a .iso (ou a pasta do jogo) não existe: $Iso" }
     $assets = Join-Path $R 'assets'
     New-Item -ItemType Directory -Force $assets | Out-Null
     $xex = Join-Path $assets 'default.xex'
@@ -295,7 +315,7 @@ Etapa 2 '2_jogo' {
     $sha = (Get-FileHash $lido -Algorithm SHA1).Hash.ToLower()
     if ($sha -ne $JOGO['sha1_xex']) {
         Remove-Item $lido -ErrorAction SilentlyContinue
-        throw "esta .iso não é a versão do port ($($JOGO['versao']), default.xex SHA-1 $($JOGO['sha1_xex']); a sua: $sha)"
+        throw "este jogo não é a versão do port ($($JOGO['versao']), default.xex SHA-1 $($JOGO['sha1_xex']); a sua: $sha)"
     }
     Move-Item -Force $lido $xex
     Set-Content -Path (Join-Path $OUT 'iso.txt') -Value $Iso -Encoding UTF8
