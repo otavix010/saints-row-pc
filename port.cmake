@@ -19,6 +19,11 @@ function(port_setup target)
                                      "${CMAKE_CURRENT_LIST_DIR}/src/port/frame_limit.cpp"
                                      "${CMAKE_CURRENT_LIST_DIR}/src/port/otavix_osd.c")
     target_link_libraries(${target} PRIVATE dxgi pdh user32 gdi32)
+    # the game's atomic sections locked by their address, not by the runtime's global lock (src/port/guest_lock.h,
+    # after the generated header, whose macros it replaces)
+    if(TARGET ${target}_recomp)
+        target_precompile_headers(${target}_recomp PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/port/guest_lock.h")
+    endif()
     target_link_options(${target} PRIVATE "LINKER:/MAP:${CMAKE_CURRENT_BINARY_DIR}/${target}.map")
     if(PORT_CPU_NATIVO)
         target_compile_options(${target} PRIVATE -march=native)
@@ -47,3 +52,12 @@ function(port_agility target)
                 "${PORT_D3D12_AGILITY_DIR}/d3d12SDKLayers.dll" "$<TARGET_FILE_DIR:${target}>/D3D12"
         VERBATIM)
 endfunction()
+
+# the translated code's atomic sections take their lock below their address (scripts/reservas.ps1, guest_lock.h): a step
+# of the code generation's own command, so it runs each time the files are made again
+file(GLOB _port_manifest LIST_DIRECTORIES false "${CMAKE_CURRENT_SOURCE_DIR}/*_manifest.toml")
+if(_port_manifest AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/default/sources.cmake")
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/generated/default/codegen.build.stamp" APPEND
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_LIST_DIR}/scripts/reservas.ps1"
+                -Pasta "${CMAKE_CURRENT_SOURCE_DIR}/generated/default")
+endif()

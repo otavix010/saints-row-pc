@@ -324,6 +324,8 @@ Etapa 2 '2_jogo' {
 # ---------------------------------------------------------------------------- 3. tradução
 Etapa 3 '3_traducao' {
     Exec "cd /d `"$R`" && `"$SDK\bin\rexglue.exe`" codegen ${PROJETO}_manifest.toml"
+    # the translated code's atomic sections locked by their address, not by the runtime's global lock (guest_lock.h)
+    Exec "powershell -NoProfile -ExecutionPolicy Bypass -File `"$R\scripts\reservas.ps1`" -Pasta `"$R\generated\default`""
 }
 
 # ---------------------------------------------------------------------------- 4. compilação

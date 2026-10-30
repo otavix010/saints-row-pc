@@ -8,7 +8,8 @@
 //     unless headless says otherwise, since they only take keyboard and mouse;
 //   - the frame rate (frame_rate.h), the port's picture options (port_options.h), the counter (fps_overlay.h), the audio
 //     guard (audio_guard.h), the input lock
-//     (input_lock.h), falha.log on a crash (crash_log.h);
+//     (input_lock.h), falha.log on a crash (crash_log.h), a log line repeated thousands of times written once in
+//     10000 (log_repeat.h);
 //   - development: PORT_PAD scripts a controller (pad_script.h), PORT_DUMP_IMAGE=file writes the loaded image for
 //     scripts/varrer_ponteiros.py, PORT_CAPTURA=file.bmp the game's picture a few times a second (captura.h).
 // A game's app derives from PortApp and adds its own hooks (its frame rate, its fixes).
@@ -42,6 +43,7 @@
 #include "fps_overlay.h"
 #include "frame_rate.h"
 #include "input_lock.h"
+#include "log_repeat.h"
 #include "pad_script.h"
 #include "port_options.h"
 #include "window_icon.h"
@@ -85,6 +87,9 @@ class PortApp : public rex::ReXApp {
     port::g_user_data_root = paths.user_data_root;
   }
 
+  // the same log line thousands of times written once in 10000 (log_repeat.h)
+  void OnPostInitLogging() override { port::log_repeat::Install(); }
+
   void OnPreSetup(rex::RuntimeConfig& config) override {
     if (config.gpu_plugin.empty() && !config.graphics) config.gpu_plugin = "xenos";
     // the GPU plugin loaded here, not after this hook as the runtime would: its options (resolution_scale,
@@ -92,6 +97,7 @@ class PortApp : public rex::ReXApp {
     // on registered options (the options file, the environment and the command line still win: they are applied as the
     // plugin registers them). Should it fail, the runtime tries again and reports it.
     if (!config.graphics && !config.gpu_plugin.empty()) config.graphics = rex::system::LoadGpuPlugin(config.gpu_plugin);
+    port::log_repeat::Install();  // the plugin's own category, registered as it loaded
     if (rex::cvar::GetFlagSource("headless") == rex::cvar::Source::kDefault)
       rex::cvar::SetFlagByName("headless", "true");
     ApplyFrameRate();
