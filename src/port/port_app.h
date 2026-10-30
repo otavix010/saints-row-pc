@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -168,6 +169,24 @@ class PortApp : public rex::ReXApp {
     return {};
   }
 
+  // the unpacked game's folder without its title update (default.xexp): the runtime would apply it over the disc's
+  // default.xex, but the port is the disc's code translated and the update's own code is not in it (reports 375, 384:
+  // Dante's update 0.0.2.3 starts its first thread at a function the port does not have, then breaks the heap)
+  class UnpackedGameDevice : public rex::filesystem::HostPathDevice {
+   public:
+    UnpackedGameDevice(std::string_view mount, const std::filesystem::path& folder)
+        : HostPathDevice(mount, folder, true) {}
+    rex::filesystem::Entry* ResolvePath(const std::string_view path) override {
+      std::string tail(path.substr(path.size() < 5 ? 0 : path.size() - 5));
+      for (char& c : tail) c = char(std::tolower(static_cast<unsigned char>(c)));
+      if (tail == ".xexp") {
+        REXLOG_INFO("iso: {} left out (a title update: the port is the disc's code)", path);
+        return nullptr;
+      }
+      return HostPathDevice::ResolvePath(path);
+    }
+  };
+
   void OnLoadXexImage(std::string& xex_image) override {
     (void)xex_image;
     const std::string iso = IsoPath();
@@ -183,7 +202,7 @@ class PortApp : public rex::ReXApp {
         REXLOG_ERROR("iso: {} is a folder without the game (default.xex); playing from the game folder", iso);
         return;
       }
-      disc = std::make_unique<rex::filesystem::HostPathDevice>(kMount, path, true);
+      disc = std::make_unique<UnpackedGameDevice>(kMount, path);
     } else {
       disc = std::make_unique<rex::filesystem::DiscImageDevice>(kMount, path);
     }
