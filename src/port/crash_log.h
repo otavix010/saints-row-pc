@@ -4,10 +4,14 @@
 // So do the exits that raise no exception: abort() (an assert, the runtime's fatal errors, std::terminate, all of them
 // 0xC0000409 to the launcher) and std::terminate's exception, which reaches abort with its message.
 // Writes with a stack buffer and WriteFile: the process heap may be the thing that broke.
+// A lost GPU ends in abort() too ("Graphics device lost": the presenter's path logs nothing), so the entry then carries
+// the driver's reason, DRED's breadcrumbs and page fault, and the video memory in use (report 430).
 
 #pragma once
 
 #include <windows.h>
+#include <d3d12.h>
+#include <dxgi1_4.h>
 
 #include <csignal>
 #include <cstdio>
@@ -19,6 +23,7 @@ namespace crash_log {
 
 inline wchar_t g_path[MAX_PATH];
 inline volatile LONG g_count = 0;
+inline ID3D12Device* g_device = nullptr;  // once the runtime made it (PortApp::OnPostSetup)
 
 inline void Write(HANDLE f, const char* s, int n) {
   DWORD written;
@@ -92,12 +97,66 @@ inline LONG CALLBACK Handler(EXCEPTION_POINTERS* ep) {
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
+// the device removed: why, where the GPU stopped (DRED), and the video memory against the budget; nothing while it
+// is fine
+inline void GpuLost(HANDLE f) {
+  if (!g_device) return;
+  HRESULT why = g_device->GetDeviceRemovedReason();
+  if (SUCCEEDED(why)) return;
+  const char* name = why == DXGI_ERROR_DEVICE_HUNG             ? "DEVICE_HUNG (TDR)"
+                     : why == DXGI_ERROR_DEVICE_REMOVED        ? "DEVICE_REMOVED"
+                     : why == DXGI_ERROR_DEVICE_RESET          ? "DEVICE_RESET"
+                     : why == DXGI_ERROR_DRIVER_INTERNAL_ERROR ? "DRIVER_INTERNAL_ERROR"
+                     : why == DXGI_ERROR_INVALID_CALL          ? "INVALID_CALL"
+                     : why == E_OUTOFMEMORY                    ? "E_OUTOFMEMORY"
+                                                               : "?";
+  char line[400];
+  Write(f, line, std::snprintf(line, sizeof line, "  GPU lost: 0x%08lX %s\r\n", static_cast<unsigned long>(why), name));
+  ID3D12DeviceRemovedExtendedData* dred = nullptr;
+  if (SUCCEEDED(g_device->QueryInterface(__uuidof(ID3D12DeviceRemovedExtendedData), reinterpret_cast<void**>(&dred)))) {
+    D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT crumbs = {};
+    int lists = 0;
+    if (SUCCEEDED(dred->GetAutoBreadcrumbsOutput(&crumbs)))
+      for (const D3D12_AUTO_BREADCRUMB_NODE* n = crumbs.pHeadAutoBreadcrumbNode; n && lists < 8; n = n->pNext) {
+        if (!n->pLastBreadcrumbValue || !n->pCommandHistory || *n->pLastBreadcrumbValue >= n->BreadcrumbCount) continue;
+        UINT last = *n->pLastBreadcrumbValue;  // the first operation the GPU did not finish
+        Write(f, line, std::snprintf(line, sizeof line, "  DRED: list %d stopped at op %u of %u (type %d)\r\n", lists,
+                                     last, n->BreadcrumbCount, static_cast<int>(n->pCommandHistory[last])));
+        ++lists;
+      }
+    D3D12_DRED_PAGE_FAULT_OUTPUT fault = {};
+    if (SUCCEEDED(dred->GetPageFaultAllocationOutput(&fault)) && fault.PageFaultVA)
+      Write(f, line, std::snprintf(line, sizeof line, "  DRED: page fault at GPU VA 0x%llx\r\n",
+                                   static_cast<unsigned long long>(fault.PageFaultVA)));
+    dred->Release();
+  }
+  // dxgi.dll is loaded already (the swap chain), asked by name so the ports link nothing new
+  using Create = HRESULT(WINAPI*)(REFIID, void**);
+  HMODULE dxgi = GetModuleHandleW(L"dxgi.dll");
+  auto create = dxgi ? reinterpret_cast<Create>(GetProcAddress(dxgi, "CreateDXGIFactory1")) : nullptr;
+  IDXGIFactory4* factory = nullptr;
+  if (create && SUCCEEDED(create(__uuidof(IDXGIFactory4), reinterpret_cast<void**>(&factory)))) {
+    IDXGIAdapter3* adapter = nullptr;
+    if (SUCCEEDED(factory->EnumAdapterByLuid(g_device->GetAdapterLuid(), __uuidof(IDXGIAdapter3),
+                                             reinterpret_cast<void**>(&adapter)))) {
+      DXGI_QUERY_VIDEO_MEMORY_INFO local = {};
+      if (SUCCEEDED(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local)))
+        Write(f, line, std::snprintf(line, sizeof line, "  VRAM: %llu MB in use, budget %llu MB\r\n",
+                                     static_cast<unsigned long long>(local.CurrentUsage >> 20),
+                                     static_cast<unsigned long long>(local.Budget >> 20)));
+      adapter->Release();
+    }
+    factory->Release();
+  }
+}
+
 // abort() raises SIGABRT first, on the thread that called it: the stack still holds the caller (an assert, the
 // runtime's fatal error, or std::terminate over the frame that threw)
 inline void OnAbort(int) {
   if (InterlockedIncrement(&g_count) > 8) return;
   HANDLE f = Begin("abort()\r\n");
   if (f == INVALID_HANDLE_VALUE) return;
+  GpuLost(f);
   CONTEXT ctx;
   RtlCaptureContext(&ctx);
   Stack(f, ctx);

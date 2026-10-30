@@ -23,6 +23,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include <rex/cvar.h>
 #include <rex/filesystem.h>
@@ -35,6 +36,7 @@
 #include <rex/rex_app.h>
 #include <rex/system/gpu_plugin.h>
 #include <rex/system/xmemory.h>
+#include <rex/ui/d3d12/d3d12_provider.h>
 #include <rex/ui/window.h>
 
 #include "audio_guard.h"
@@ -119,6 +121,19 @@ class PortApp : public rex::ReXApp {
 
   void OnPostSetup() override {
     port_options::Log();
+    if (auto* gs = runtime()->graphics_system())
+      if (auto* d3d12 = dynamic_cast<rex::ui::d3d12::D3D12Provider*>(gs->provider()))
+        crash_log::g_device = d3d12->GetDevice();
+    // PORT_GPU_PERDIDA=N: the device removed after N seconds, to see falha.log's GPU lines (development)
+    if (const char* s = std::getenv("PORT_GPU_PERDIDA"); s && crash_log::g_device)
+      std::thread([n = std::atoi(s)] {
+        Sleep(DWORD(n) * 1000);
+        ID3D12Device5* d5 = nullptr;
+        if (SUCCEEDED(crash_log::g_device->QueryInterface(__uuidof(ID3D12Device5), reinterpret_cast<void**>(&d5)))) {
+          d5->RemoveDevice();
+          d5->Release();
+        }
+      }).detach();
     if (const char* file = std::getenv("PORT_CAPTURA"); file && runtime()->graphics_system()) {
       const char* ms = std::getenv("PORT_CAPTURA_MS");
       captura_ = std::make_unique<captura::Captura>(runtime()->graphics_system(), port::FromUtf8(file).wstring(), ms ? std::atoi(ms) : 150);
