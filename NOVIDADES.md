@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 29/10/2026 · 6284472
+### pt
+- **Jogo extraído com atualização (title update):** se a pasta do jogo tinha o `default.xexp` da atualização, o port aplicava a atualização por cima do jogo do disco e fechava na hora (erro 0xC0000374). O port é o código do disco; agora a atualização é ignorada.
+### en
+- **Unpacked game with a title update:** if the game folder had the update's `default.xexp`, the port applied the update over the disc's game and closed right away (error 0xC0000374). The port is the disc's code; the update is now ignored.
+### es
+- **Juego extraído con actualización (title update):** si la carpeta del juego tenía el `default.xexp` de la actualización, el port la aplicaba sobre el juego del disco y se cerraba al instante (error 0xC0000374). El port es el código del disco; ahora la actualización se ignora.
+
 ## 29/10/2026 · 9f78d87
 ### pt
 - **Desempenho em processadores com menos núcleos:** cada operação atômica do jogo passava por uma única trava do runtime, a mesma que a placa de vídeo usa a cada desenho. Num processador com menos núcleos que threads ocupadas (como um Ryzen 5 5600X), a thread que segurava essa trava era pausada pelo Windows e todas as outras esperavam. Agora cada operação trava só o endereço que altera: menos quedas de fps e menos travadas.
