@@ -4,6 +4,17 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 29/10/2026 · 9f78d87
+### pt
+- **Desempenho em processadores com menos núcleos:** cada operação atômica do jogo passava por uma única trava do runtime, a mesma que a placa de vídeo usa a cada desenho. Num processador com menos núcleos que threads ocupadas (como um Ryzen 5 5600X), a thread que segurava essa trava era pausada pelo Windows e todas as outras esperavam. Agora cada operação trava só o endereço que altera: menos quedas de fps e menos travadas.
+- **Log mais leve:** um aviso repetido centenas de vezes por segundo (Saints Row: "invalid type" de textura) era gravado no disco a cada vez; agora uma linha igual aparece 20 vezes e depois só uma a cada 10000.
+### en
+- **Performance on processors with fewer cores:** every atomic operation of the game went through a single lock of the runtime, the same one the graphics card's thread takes on every draw. On a processor with fewer cores than busy threads (such as a Ryzen 5 5600X), the thread holding that lock was paused by Windows and all the others waited. Each operation now locks only the address it changes: fewer frame rate drops and stutters.
+- **Lighter log:** a warning repeated hundreds of times a second (Saints Row: a texture's "invalid type") was written to the disk each time; the same line now shows 20 times and then once in 10000.
+### es
+- **Rendimiento en procesadores con menos núcleos:** cada operación atómica del juego pasaba por un único bloqueo del runtime, el mismo que usa la tarjeta gráfica en cada dibujo. En un procesador con menos núcleos que hilos ocupados (como un Ryzen 5 5600X), el hilo que tenía ese bloqueo era pausado por Windows y todos los demás esperaban. Ahora cada operación bloquea solo la dirección que cambia: menos caídas de fps y menos tirones.
+- **Log más ligero:** un aviso repetido cientos de veces por segundo (Saints Row: "invalid type" de textura) se escribía en el disco cada vez; ahora una línea igual aparece 20 veces y luego solo una de cada 10000.
+
 ## 29/10/2026 · 12295d0
 ### pt
 - **Jogo extraído do disco:** além da .iso, agora serve a pasta com os arquivos do disco já extraídos (a que tem o default.xex). Pode escolher essa pasta, uma subpasta dela (como a $SystemUpdate) ou a pasta de cima: o gerador acha o jogo, confere a versão e o port lê os arquivos direto dali.
