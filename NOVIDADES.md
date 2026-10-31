@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 30/10/2026 · 1745a6a
+### pt
+- **Relatório de erro da placa de vídeo:** quando o driver de vídeo derrubava o jogo ("Graphics device lost"), o port fechava sem registrar nada. Agora o arquivo de falha que vai junto no report traz o motivo informado pelo driver, o ponto em que a placa parou e a VRAM em uso.
+### en
+- **Graphics card error report:** when the video driver brought the game down ("Graphics device lost"), the port closed without recording anything. The crash file sent with the report now has the reason given by the driver, the point where the card stopped and the VRAM in use.
+### es
+- **Informe de error de la tarjeta gráfica:** cuando el controlador de vídeo tiraba el juego ("Graphics device lost"), el port se cerraba sin registrar nada. Ahora el archivo de fallo que va con el report trae el motivo indicado por el controlador, el punto en que la tarjeta se detuvo y la VRAM en uso.
+
 ## 29/10/2026 · 6284472
 ### pt
 - **Jogo extraído com atualização (title update):** se a pasta do jogo tinha o `default.xexp` da atualização, o port aplicava a atualização por cima do jogo do disco e fechava na hora (erro 0xC0000374). O port é o código do disco; agora a atualização é ignorada.
