@@ -29,6 +29,16 @@ function(port_setup target)
         target_compile_options(${target} PRIVATE -march=native)
         target_compile_definitions(${target} PRIVATE PORT_CPU_NATIVO=1)  # said in the session's performance file
     endif()
+    # the third parties' licence notices and the origin of each part (docs/, from x360-ports/comum), beside the
+    # executable: the SDK's binaries carry BSD, MIT, LGPL and GPL code whose notices must go with them
+    foreach(_doc REFERENCIAS.md LICENCAS-TERCEIROS.txt)
+        if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/docs/${_doc}")
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_LIST_DIR}/docs/${_doc}"
+                        "$<TARGET_FILE_DIR:${target}>"
+                VERBATIM)
+        endif()
+    endforeach()
     if(WIN32 AND TARGET rex::amd_fidelityfx_dx12)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:rex::amd_fidelityfx_dx12>"
