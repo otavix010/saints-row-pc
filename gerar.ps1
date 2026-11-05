@@ -154,6 +154,46 @@ function Achar-VS {
 # ---------------------------------------------------------------------------- Xbox 360 disc images (XDVDFS)
 # The volume descriptor sits 0x10000 into the game partition, which starts at one of these offsets
 # (a trimmed xiso, XGD1, XGD2, XGD3).
+# The game partition of an image in none of the usual places: the descriptor looked for at every sector of the
+# first 512 MB, read in 8 MB blocks (a second or two). Its base, or $null.
+function Achar-Xdvdfs([IO.FileStream]$f) {
+    $marca = 'MICROSOFT*XBOX*MEDIA'
+    $latin = [Text.Encoding]::GetEncoding(28591)
+    $bloco = 8MB
+    $buf = New-Object byte[] ($bloco + 20)
+    $fim = [Math]::Min($f.Length, 0x20000000 + 0x10000)
+    for ($p = [int64]0x10000; $p -lt $fim; $p += $bloco) {
+        $f.Position = $p
+        $n = $f.Read($buf, 0, $buf.Length)
+        if ($n -lt 20) { break }
+        $txt = $latin.GetString($buf, 0, $n)
+        $i = $txt.IndexOf($marca, [StringComparison]::Ordinal)
+        while ($i -ge 0) {
+            $pos = $p + $i
+            if ($pos % 2048 -eq 0) { return $pos - 0x10000 }
+            $i = $txt.IndexOf($marca, $i + 1, [StringComparison]::Ordinal)
+        }
+    }
+    return $null
+}
+# Why a file is not a disc image, in the player's words: a compressed file renamed, an incomplete download, or
+# another format (report 860)
+function Explicar-Iso([IO.FileStream]$f, [string]$iso) {
+    $gb = '{0:N2}' -f ($f.Length / 1GB)
+    $f.Position = 0
+    $cab = New-Object byte[] 8
+    [void]$f.Read($cab, 0, 8)
+    $sig = [Text.Encoding]::ASCII.GetString($cab)
+    $tipo = $null
+    if ($sig.StartsWith('Rar!')) { $tipo = 'um arquivo .rar' }
+    elseif ($cab[0] -eq 0x37 -and $cab[1] -eq 0x7A -and $cab[2] -eq 0xBC) { $tipo = 'um arquivo .7z' }
+    elseif ($sig.StartsWith('PK')) { $tipo = 'um arquivo .zip' }
+    elseif ($sig.StartsWith('CISO') -or $sig.StartsWith('ZISO')) { $tipo = 'uma imagem comprimida (CSO/ZSO)' }
+    $msg = "não é uma imagem de disco do Xbox 360: $iso ($gb GB)."
+    if ($tipo) { return "$msg É $tipo com o nome trocado para .iso: extraia-o primeiro e escolha a .iso de dentro." }
+    if ($f.Length -lt 6GB) { return "$msg É menor que um disco de Xbox 360 completo (7 a 8 GB): o download pode estar incompleto." }
+    return "$msg Não achamos o sistema de arquivos do disco; o download pode estar incompleto ou corrompido, ou não ser uma cópia do disco (GOD/XBLA não servem)."
+}
 function Ler-Xex([string]$iso, [string]$destino) {
     if (Test-Path -LiteralPath $iso -PathType Container) {
         Copy-Item -LiteralPath (Join-Path $iso 'default.xex') $destino -Force
@@ -163,12 +203,15 @@ function Ler-Xex([string]$iso, [string]$destino) {
     try {
         $r = New-Object IO.BinaryReader($f)
         $base = $null
-        foreach ($b in @(0, 0x18300000, 0xFD90000, 0x2080000)) {
+        # the known layouts first, then any sector in the first 512 MB (report 860: an image none of them matched)
+        foreach ($b in @(0, 0x18300000, 0xFD90000, 0x2080000, 0xFB20, 0x20600)) {
             if ($b + 0x10000 + 28 -gt $f.Length) { continue }
             $f.Position = $b + 0x10000
             if ([Text.Encoding]::ASCII.GetString($r.ReadBytes(20)) -eq 'MICROSOFT*XBOX*MEDIA') { $base = $b; break }
         }
-        if ($null -eq $base) { throw "não é uma imagem de disco do Xbox 360: $iso" }
+        if ($null -eq $base) { $base = Achar-Xdvdfs $f }
+        if ($null -eq $base) { throw (Explicar-Iso $f $iso) }
+        $f.Position = $base + 0x10000 + 20
         $raizSetor = $r.ReadUInt32(); $raizTam = $r.ReadUInt32()
         $f.Position = $base + [int64]$raizSetor * 2048
         $dir = $r.ReadBytes($raizTam)
