@@ -1,4 +1,20 @@
-# Saints Row — port nativo para PC
+<h1 align="center">Saints Row — port nativo para PC</h1>
+
+<p align="center"><i>Saints Row (Xbox 360) — port nativo para PC por recompilação estática (ReXGlue). Gera a partir da sua .iso.</i></p>
+
+<p align="center">
+  <a href="https://github.com/otavix010/saints-row-pc/commits/main"><img alt="Última atualização" src="https://img.shields.io/github/last-commit/otavix010/saints-row-pc?label=%C3%BAltima%20atualiza%C3%A7%C3%A3o"></a>
+  <a href="LICENSE"><img alt="Licença" src="https://img.shields.io/github/license/otavix010/saints-row-pc?label=licen%C3%A7a"></a>
+  <a href="https://github.com/otavix010/otavix-launcher/releases/latest"><img alt="Baixar o Otavix Launcher" src="https://img.shields.io/badge/Otavix%20Launcher-baixar-b00020"></a>
+</p>
+
+<p align="center">
+  <a href="#o-que-o-port-acrescenta">O que o port acrescenta</a> ·
+  <a href="#estado-dos-testes">Estado dos testes</a> ·
+  <a href="#gerar-à-mão-sem-o-launcher">Gerar à mão (sem o launcher)</a> ·
+  <a href="#opções">Opções</a> ·
+  <a href="#como-funciona">Como funciona</a>
+</p>
 
 Port do **Saints Row** (Xbox 360) por **recompilação estática**: o código PowerPC do jogo é traduzido para C++ e compilado como um programa de Windows. Não há emulador de CPU rodando o jogo. A parte gráfica usa o runtime da [ReXGlue](https://github.com/rexglue/rexglue-sdk), derivado do [Xenia](https://xenia.jp).
 
