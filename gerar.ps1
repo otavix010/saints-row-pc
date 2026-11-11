@@ -41,15 +41,12 @@ foreach ($linha in Get-Content (Join-Path $R 'config\jogo.txt') -Encoding UTF8) 
     if ($linha -match '^\s*([a-z0-9_]+)\s*=\s*(.*?)\s*$') { $JOGO[$Matches[1]] = $Matches[2] }
 }
 # the tools, pinned
-# the ReXGlue SDK of the nightly 0.10.0.24 (bd833a2) built with AMD FidelityFX (FSR, CAS), which the official one
-# lacks, and the ports' fixes (otavix010/rexglue-sdk-ffx: the 3D-as-2D texture at a resolution scale above 1x)
-$SDK_VERSAO = '0.10.0.24-ffx2'
-# the launcher's own server first: since 28/10/2026 the GitHub account is suspended and its releases answer 404
-# (reports 243, 262, 282, 300, 305, 315)
+# the Otavix Engine 360 1.0.0 (the runtime, the translator and their headers and libraries, in the same layout as the
+# ReXGlue SDK it started from); its binaries come from the launcher's server only
+$SDK_VERSAO = 'otx-1.0.0'
 $SDK_URLS = @(
-    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/rexglue-sdk-ffx/v0.10.0.24-ffx2/rexglue-sdk-0.10.0.24-ffx2-win-amd64.zip',
-    'https://github.com/otavix010/rexglue-sdk-ffx/releases/download/v0.10.0.24-ffx2/rexglue-sdk-0.10.0.24-ffx2-win-amd64.zip')
-$SDK_SHA256 = '9aad4b00c032ebe79ac6487ab88c255f7902f37ed3899306f2692caf2820af4e'
+    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/otavix-engine-360/v1.0.0/otavix-engine-360-1.0.0-win-amd64.zip')
+$SDK_SHA256 = '9097475376de43766e815de5306b38acebd6910df8ce67cab95dc15ad39a4fc5'
 $LLVM_VERSAO = '23.1.3'
 $LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSAO/clang%2Bllvm-$LLVM_VERSAO-x86_64-pc-windows-msvc.tar.zst"
 $LLVM_SHA256 = '7e69dc07a4536b79ff24a651a2611990bf8eaab17ea560f1092707c4f31ba01d'
@@ -362,6 +359,17 @@ Etapa 2 '2_jogo' {
     }
     Move-Item -Force $lido $xex
     Set-Content -Path (Join-Path $OUT 'iso.txt') -Value $Iso -Encoding UTF8
+}
+
+# the SDK changed since the last translation (a new engine): translation, build and the launch script again, even
+# for whoever runs this by hand without -RefazerDe
+$sdkTxt = Join-Path $OUT 'sdk.txt'
+$sdkAntes = if (Test-Path $sdkTxt) { Get-Content $sdkTxt -Encoding UTF8 | Select-Object -First 1 } else { '' }
+if ($sdkAntes -ne $SDK_VERSAO) {
+    if (Test-Path (Join-Path $OUT '3_traducao.ok')) { Msg "o SDK mudou ($sdkAntes -> $SDK_VERSAO): tradução e compilação de novo" }
+    Remove-Item (Join-Path $OUT '3_traducao.ok'), (Join-Path $OUT '4_compilar.ok'), (Join-Path $OUT '5_jogar.ok') -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force $OUT | Out-Null
+    Set-Content -Path $sdkTxt -Value $SDK_VERSAO -Encoding UTF8
 }
 
 # ---------------------------------------------------------------------------- 3. tradução

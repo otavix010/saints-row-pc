@@ -4,6 +4,20 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 11/11/2026 · engine 1.0.0
+### pt
+- **Otavix Engine 360 1.0.0:** o port agora roda sobre a engine própria da Otavix, que substitui o runtime de origem (ReXGlue/Xenia). O launcher refaz a tradução e a compilação na atualização; o jogo e os saves continuam onde estavam.
+- **Imagens de disco danificadas:** uma .iso corrompida ou cortada no fim fazia o port fechar sem aviso ao ler as pastas do disco. Agora ela é recusada com o motivo no log, e um arquivo cortado é lido só até onde existe.
+- **Áudio ao fechar o jogo:** se o decodificador de áudio demorasse a parar, a memória dele era devolvida enquanto ainda estava em uso, o que podia fechar o port com erro ao sair.
+### en
+- **Otavix Engine 360 1.0.0:** the port now runs on Otavix's own engine, which replaces the runtime it started from (ReXGlue/Xenia). The launcher redoes the translation and the build on the update; the game and the saves stay where they were.
+- **Damaged disc images:** a corrupted .iso, or one cut short at the end, made the port close without warning while reading the disc's folders. It is now refused with the reason in the log, and a cut-short file is read only as far as it exists.
+- **Audio when closing the game:** if the audio decoder took long to stop, its memory was given back while still in use, which could make the port close with an error on exit.
+### es
+- **Otavix Engine 360 1.0.0:** el port ahora funciona sobre el motor propio de Otavix, que reemplaza el runtime de origen (ReXGlue/Xenia). El launcher rehace la traducción y la compilación al actualizar; el juego y las partidas guardadas siguen donde estaban.
+- **Imágenes de disco dañadas:** una .iso corrupta o cortada al final hacía que el port se cerrara sin aviso al leer las carpetas del disco. Ahora se rechaza con el motivo en el log, y un archivo cortado se lee solo hasta donde existe.
+- **Audio al cerrar el juego:** si el decodificador de audio tardaba en detenerse, su memoria se devolvía mientras aún estaba en uso, lo que podía cerrar el port con un error al salir.
+
 ## 30/10/2026 · 1745a6a
 ### pt
 - **Relatório de erro da placa de vídeo:** quando o driver de vídeo derrubava o jogo ("Graphics device lost"), o port fechava sem registrar nada. Agora o arquivo de falha que vai junto no report traz o motivo informado pelo driver, o ponto em que a placa parou e a VRAM em uso.
