@@ -41,12 +41,12 @@ foreach ($linha in Get-Content (Join-Path $R 'config\jogo.txt') -Encoding UTF8) 
     if ($linha -match '^\s*([a-z0-9_]+)\s*=\s*(.*?)\s*$') { $JOGO[$Matches[1]] = $Matches[2] }
 }
 # the tools, pinned
-# the Otavix Engine 360 1.0.0 (the runtime, the translator and their headers and libraries, in the same layout as the
+# the Otavix Engine 360 1.0.1 (the runtime, the translator and their headers and libraries, in the same layout as the
 # ReXGlue SDK it started from); its binaries come from the launcher's server only
-$SDK_VERSAO = 'otx-1.0.0'
+$SDK_VERSAO = 'otx-1.0.1'
 $SDK_URLS = @(
-    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/otavix-engine-360/v1.0.0/otavix-engine-360-1.0.0-win-amd64.zip')
-$SDK_SHA256 = '9097475376de43766e815de5306b38acebd6910df8ce67cab95dc15ad39a4fc5'
+    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/otavix-engine-360/v1.0.1/otavix-engine-360-1.0.1-win-amd64.zip')
+$SDK_SHA256 = 'c42c9330ebf67e6b24121f459049309c62e47561ac8cfeec441a7339dc715491'
 $LLVM_VERSAO = '23.1.3'
 $LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSAO/clang%2Bllvm-$LLVM_VERSAO-x86_64-pc-windows-msvc.tar.zst"
 $LLVM_SHA256 = '7e69dc07a4536b79ff24a651a2611990bf8eaab17ea560f1092707c4f31ba01d'

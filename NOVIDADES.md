@@ -4,6 +4,20 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 12/11/2026 · engine 1.0.1
+### pt
+- **Otavix Engine 360 1.0.1:** nova versão da engine, com mais uma parte do código de origem reescrita pela Otavix. A imagem do jogo sai idêntica à da 1.0.0, quadro a quadro. O launcher refaz a tradução e a compilação na atualização; o jogo e os saves continuam onde estavam.
+- **Fila de tarefas do sistema:** ao colocar a primeira tarefa na fila vazia ou ao tirar a última, a engine escrevia 4 bytes num endereço fora da fila, na memória do jogo. Isso não acontece mais.
+- **Nome da engine:** a janela do jogo e o log passam a mostrar "Otavix Engine 360 v1.0.1".
+### en
+- **Otavix Engine 360 1.0.1:** a new engine version, with another part of the original code rewritten by Otavix. The game's image is identical to 1.0.0's, frame by frame. The launcher redoes the translation and the build on the update; the game and the saves stay where they were.
+- **System task queue:** when the first task went into the empty queue, or the last one left it, the engine wrote 4 bytes to an address outside the queue, in the game's memory. This no longer happens.
+- **Engine name:** the game window and the log now show "Otavix Engine 360 v1.0.1".
+### es
+- **Otavix Engine 360 1.0.1:** nueva versión del motor, con otra parte del código de origen reescrita por Otavix. La imagen del juego sale idéntica a la de la 1.0.0, cuadro a cuadro. El launcher rehace la traducción y la compilación al actualizar; el juego y las partidas guardadas siguen donde estaban.
+- **Cola de tareas del sistema:** al poner la primera tarea en la cola vacía o al quitar la última, el motor escribía 4 bytes en una dirección fuera de la cola, en la memoria del juego. Esto ya no ocurre.
+- **Nombre del motor:** la ventana del juego y el log ahora muestran "Otavix Engine 360 v1.0.1".
+
 ## 11/11/2026 · engine 1.0.0
 ### pt
 - **Otavix Engine 360 1.0.0:** o port agora roda sobre a engine própria da Otavix, que substitui o runtime de origem (ReXGlue/Xenia). O launcher refaz a tradução e a compilação na atualização; o jogo e os saves continuam onde estavam.
