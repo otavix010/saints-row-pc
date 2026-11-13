@@ -4,6 +4,23 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 13/11/2026 · engine 1.0.2
+### pt
+- **Otavix Engine 360 1.0.2:** nova versão da engine, voltada ao desempenho da placa de vídeo. A imagem do jogo sai idêntica à da 1.0.1, quadro a quadro. O launcher refaz a tradução e a compilação na atualização; o jogo e os saves continuam onde estavam.
+- **Envio à placa de vídeo em paralelo:** os comandos de cada quadro passam a ser enviados à placa de vídeo por uma thread própria, enquanto a engine já prepara o quadro seguinte.
+- **Imagens que o jogo não lê:** a engine deixa de copiar para a memória do jogo as imagens renderizadas que ele não lê. Quando o jogo volta a ler uma delas, a cópia volta na hora.
+- **Desenhos de tela cheia:** antes de um desenho que cobre a tela inteira, a engine deixa de copiar a parte da imagem que ele vai sobrescrever.
+### en
+- **Otavix Engine 360 1.0.2:** a new engine version, focused on graphics card performance. The game's image is identical to 1.0.1's, frame by frame. The launcher redoes the translation and the build on the update; the game and the saves stay where they were.
+- **Parallel submission to the graphics card:** each frame's commands are now sent to the graphics card by a dedicated thread, while the engine already prepares the next frame.
+- **Images the game doesn't read:** the engine no longer copies rendered images the game doesn't read into the game's memory. When the game reads one of them again, the copy comes back right away.
+- **Full-screen draws:** before a draw that covers the whole screen, the engine no longer copies the part of the image that the draw will overwrite.
+### es
+- **Otavix Engine 360 1.0.2:** nueva versión del motor, centrada en el rendimiento de la tarjeta gráfica. La imagen del juego sale idéntica a la de la 1.0.1, cuadro a cuadro. El launcher rehace la traducción y la compilación al actualizar; el juego y las partidas guardadas siguen donde estaban.
+- **Envío a la tarjeta gráfica en paralelo:** los comandos de cada cuadro ahora se envían a la tarjeta gráfica desde un hilo propio, mientras el motor ya prepara el cuadro siguiente.
+- **Imágenes que el juego no lee:** el motor deja de copiar a la memoria del juego las imágenes renderizadas que este no lee. Cuando el juego vuelve a leer una de ellas, la copia vuelve al instante.
+- **Dibujos de pantalla completa:** antes de un dibujo que cubre toda la pantalla, el motor deja de copiar la parte de la imagen que ese dibujo va a sobrescribir.
+
 ## 12/11/2026 · engine 1.0.1
 ### pt
 - **Otavix Engine 360 1.0.1:** nova versão da engine, com mais uma parte do código de origem reescrita pela Otavix. A imagem do jogo sai idêntica à da 1.0.0, quadro a quadro. O launcher refaz a tradução e a compilação na atualização; o jogo e os saves continuam onde estavam.
