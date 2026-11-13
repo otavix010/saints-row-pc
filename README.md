@@ -56,7 +56,7 @@ DLSS e XeSS não entram: os dois precisam de vetores de movimento, que os jogos 
 
 ## Estado dos testes
 
-- Do início ao jogo livre a 60 fps; a velocidade do personagem a pé é a mesma a 30 e a 60.
+- Jogo livre logo depois da criação do personagem, na engine 1.0.1: 4 minutos andando e correndo pelas ruas, a 60 fps em 2x (média 61,1; mínimo 59; GPU em 31%). A velocidade do personagem a pé é a mesma a 30 e a 60.
 - 120 fps não entra: o jogo seguiria a velocidade certa (a caminhada percorre a mesma distância a 60 e a 120), mas não passa de uns 70 fps, porque a thread do runtime que traduz os comandos de GPU do Xbox 360 fica a 98% de um núcleo com a quantidade de desenhos da cidade.
 - Som funcionando, com o volume do port testado (25% dá 1/16 da potência, como previsto).
 
@@ -79,11 +79,11 @@ DLSS e XeSS não entram: os dois precisam de vetores de movimento, que os jogos 
 
 ## Desempenho medido
 
-FPS de jogo. **Só colocamos o que foi medido**, e com **um jogo só rodando** (com outra carga junto, o desempenho pode cair bastante). Foram medidos no runtime anterior; na engine 1.0.0 a saída da GPU saiu **idêntica quadro a quadro** nos 4 ports e o boot não falhou, mas os FPS **ainda não foram remedidos**.
+FPS de jogo. **Só colocamos o que foi medido**, e com **um jogo só rodando** (com outra carga junto, o desempenho pode cair bastante). Os números de 2x são da engine 1.0.1 (a saída da GPU é **idêntica quadro a quadro** à da 1.0.0 nos 4 ports); o que veio do runtime anterior está indicado como tal.
 
 | Máquina | CPU | GPU | FPS |
 |---|---|---|---|
-| **PC 1** | Ryzen 7 9800X3D | RTX 5080 | **60** do início ao jogo livre. 120 não entra: o próprio jogo limita a física a 1/60 e o runtime não passa de ~70 na cidade |
+| **PC 1** | Ryzen 7 9800X3D | RTX 5080 | 2x (1440p): **60** do início ao jogo livre (média 61,1 nas ruas, mínimo 59, GPU em 31%) na engine 1.0.1. 120 não entra: o próprio jogo limita a física a 1/60 e o runtime não passa de ~70 na cidade (medido no runtime anterior) |
 | **PC 2** | Core i5-11400F | RX 9060 XT | não medido |
 | **Notebook** | Core i5-10300H (4/8) | GTX 1650 | não medido |
 | **Portátil** | Legion Go S (Linux) | Radeon 780M | não suportado |
