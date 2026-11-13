@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 13/11/2026 · engine 1.0.3
+### pt
+- **Fechar o jogo:** fechar o jogo com ALT+F4 ou pelo X da janela não termina mais com o erro 0xC0000409. O defeito veio na engine 1.0.2.
+### en
+- **Closing the game:** closing the game with ALT+F4 or the window's X no longer ends with error 0xC0000409. The defect came with engine 1.0.2.
+### es
+- **Cerrar el juego:** cerrar el juego con ALT+F4 o con la X de la ventana ya no termina con el error 0xC0000409. El defecto llegó con el motor 1.0.2.
+
 ## 13/11/2026 · engine 1.0.2
 ### pt
 - **Otavix Engine 360 1.0.2:** nova versão da engine, voltada ao desempenho da placa de vídeo. A imagem do jogo sai idêntica à da 1.0.1, quadro a quadro. O launcher refaz a tradução e a compilação na atualização; o jogo e os saves continuam onde estavam.
