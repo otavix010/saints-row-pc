@@ -4,6 +4,20 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 14/11/2026 · engine 1.0.4
+### pt
+- **Teclado na tela:** onde o jogo pede um texto (como o nome do piloto), a janela de digitação aparece e aceita o teclado; Enter ou A confirmam, Esc ou B cancelam. Antes, o texto voltava sozinho e ilegível.
+- **Imagem:** corrigido um piscar leve em objetos ao fundo (como prédios distantes) que veio com a engine 1.0.2.
+- **Desempenho:** menos trabalho de GPU nas cópias de profundidade e stencil e nos desenhos que não mudam a imagem.
+### en
+- **On-screen keyboard:** where the game asks for text (such as the driver's name), the typing window appears and takes the keyboard; Enter or A confirm, Esc or B cancel. Before, the text came back on its own and unreadable.
+- **Picture:** fixed a slight flicker on background objects (such as distant buildings) that came with engine 1.0.2.
+- **Performance:** less GPU work in depth and stencil copies and in draws that do not change the picture.
+### es
+- **Teclado en pantalla:** donde el juego pide un texto (como el nombre del piloto), la ventana de escritura aparece y acepta el teclado; Enter o A confirman, Esc o B cancelan. Antes, el texto volvía solo e ilegible.
+- **Imagen:** corregido un leve parpadeo en objetos del fondo (como edificios lejanos) que llegó con el motor 1.0.2.
+- **Rendimiento:** menos trabajo de GPU en las copias de profundidad y stencil y en los dibujos que no cambian la imagen.
+
 ## 13/11/2026 · engine 1.0.3
 ### pt
 - **Fechar o jogo:** fechar o jogo com ALT+F4 ou pelo X da janela não termina mais com o erro 0xC0000409. O defeito veio na engine 1.0.2.
