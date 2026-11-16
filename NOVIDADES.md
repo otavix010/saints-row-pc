@@ -4,6 +4,17 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 16/11/2026 · engine 1.0.5
+### pt
+- **Abertura:** a janela do jogo continua respondendo enquanto os shaders são preparados na abertura. Em computadores mais fracos essa etapa leva minutos, e o Windows chegava a oferecer fechar o jogo (erro 0xCFFFFFFF).
+- **Gerador:** quando a .iso escolhida é de outro jogo dos nossos ports, a mensagem diz qual é o jogo e o que escolher; para outras cópias diferentes da esperada, o log descreve o arquivo encontrado.
+### en
+- **Startup:** the game window keeps responding while shaders are prepared at startup. On slower computers this step takes minutes, and Windows would offer to close the game (error 0xCFFFFFFF).
+- **Generator:** when the .iso picked belongs to another game of our ports, the message names the game and says what to pick; for other copies that differ from the expected one, the log describes the file found.
+### es
+- **Inicio:** la ventana del juego sigue respondiendo mientras se preparan los shaders al inicio. En computadoras más lentas este paso tarda minutos, y Windows llegaba a ofrecer cerrar el juego (error 0xCFFFFFFF).
+- **Generador:** cuando la .iso elegida es de otro juego de nuestros ports, el mensaje dice cuál es el juego y qué elegir; para otras copias distintas de la esperada, el registro describe el archivo encontrado.
+
 ## 14/11/2026 · engine 1.0.4
 ### pt
 - **Teclado na tela:** onde o jogo pede um texto (como o nome do piloto), a janela de digitação aparece e aceita o teclado; Enter ou A confirmam, Esc ou B cancelam. Antes, o texto voltava sozinho e ilegível.

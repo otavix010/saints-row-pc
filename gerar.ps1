@@ -41,12 +41,12 @@ foreach ($linha in Get-Content (Join-Path $R 'config\jogo.txt') -Encoding UTF8) 
     if ($linha -match '^\s*([a-z0-9_]+)\s*=\s*(.*?)\s*$') { $JOGO[$Matches[1]] = $Matches[2] }
 }
 # the tools, pinned
-# the Otavix Engine 360 1.0.4 (the runtime, the translator and their headers and libraries, in the same layout as the
+# the Otavix Engine 360 1.0.5 (the runtime, the translator and their headers and libraries, in the same layout as the
 # ReXGlue SDK it started from); its binaries come from the launcher's server only
-$SDK_VERSAO = 'otx-1.0.4'
+$SDK_VERSAO = 'otx-1.0.5'
 $SDK_URLS = @(
-    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/otavix-engine-360/v1.0.4/otavix-engine-360-1.0.4-win-amd64.zip')
-$SDK_SHA256 = '12bfa3a1f8e3f64f70b6ea7675f06ec251997c0c3cec3d9f62680c653cc4d157'
+    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/otavix-engine-360/v1.0.5/otavix-engine-360-1.0.5-win-amd64.zip')
+$SDK_SHA256 = 'fc07f67adb145bc36fa6d26a699b69e1f8cbd149ee07c48cc4aca54fc3e0320a'
 $LLVM_VERSAO = '23.1.3'
 $LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSAO/clang%2Bllvm-$LLVM_VERSAO-x86_64-pc-windows-msvc.tar.zst"
 $LLVM_SHA256 = '7e69dc07a4536b79ff24a651a2611990bf8eaab17ea560f1092707c4f31ba01d'
@@ -244,6 +244,95 @@ function Ler-Xex([string]$iso, [string]$destino) {
     } finally { $f.Close() }
 }
 
+# a default.xex that is not the port's: what its header says (format, version, title) and the SHA-1 of its decoded
+# image (the game's code itself, the same in a copy whose .xex was only decrypted or decompressed by a download site),
+# so a report tells another edition apart from the same game written differently; it reads, never changes the file
+function Descrever-Xex([string]$xex) {
+    $d = [IO.File]::ReadAllBytes($xex)
+    # big-endian (PowerShell's -shl and -bor share one precedence, left to right: plain arithmetic instead)
+    $u32 = { param($o) [uint32]([int64]$d[$o] * 16777216 + [int64]$d[$o + 1] * 65536 + [int64]$d[$o + 2] * 256 + $d[$o + 3]) }
+    $u16 = { param($o) [uint16]([int]$d[$o] * 256 + $d[$o + 1]) }
+    $linhas = New-Object System.Collections.Generic.List[string]
+    $linhas.Add("default.xex: $($d.Length) bytes")
+    if ($d.Length -lt 0x18 -or [Text.Encoding]::ASCII.GetString($d, 0, 4) -ne 'XEX2') {
+        $linhas.Add('não é um XEX2 (cabeçalho ' + [Text.Encoding]::ASCII.GetString($d, 0, [Math]::Min(4, $d.Length)) + ')')
+        return $linhas
+    }
+    $dados = & $u32 8; $seg = & $u32 0x10; $n = & $u32 0x14
+    $formato = $null; $exec = $null
+    for ($i = 0; $i -lt $n -and 0x18 + $i * 8 + 8 -le $d.Length; $i++) {
+        $chave = & $u32 (0x18 + $i * 8); $valor = & $u32 (0x18 + $i * 8 + 4)
+        if ($chave -eq 0x000003FF) { $formato = $valor }
+        if ($chave -eq 0x00040006) { $exec = $valor }
+    }
+    $linhas.Add(('module_flags 0x{0:X8}, dados em 0x{1:X}' -f (& $u32 4), $dados))
+    $ver = { param($v) '{0}.{1}.{2}.{3} (0x{4:X8})' -f ($v -shr 28), (($v -shr 24) -band 0xF), (($v -shr 8) -band 0xFFFF), ($v -band 0xFF), $v }
+    if ($exec -and $exec + 0x18 -le $d.Length) {
+        $linhas.Add(('title_id {0:X8}, media_id {1:X8}, versão {2}, versão base {3}, disco {4}/{5}' -f (& $u32 ($exec + 0xC)),
+            (& $u32 $exec), (& $ver (& $u32 ($exec + 4))), (& $ver (& $u32 ($exec + 8))), $d[$exec + 0x12], $d[$exec + 0x13]))
+    }
+    if ($seg + 0x160 -le $d.Length) {
+        $linhas.Add(('imagem: {0} bytes, carregada em 0x{1:X8}, image_flags 0x{2:X8}' -f (& $u32 ($seg + 4)), (& $u32 ($seg + 0x110)), (& $u32 ($seg + 0x10C))))
+    }
+    if (-not $formato -or $formato + 8 -gt $d.Length) { $linhas.Add('sem FILE_FORMAT_INFO'); return $linhas }
+    $cifra = & $u16 ($formato + 4); $comp = & $u16 ($formato + 6)
+    $nomeComp = @{ 0 = 'sem compressão'; 1 = 'compressão básica'; 2 = 'compressão LZX'; 3 = 'delta (patch)' }[[int]$comp]
+    $linhas.Add("formato: $(if ($cifra) { 'cifrado' } else { 'sem cifra' }), $nomeComp")
+    if ($comp -gt 1) { $linhas.Add('hash da imagem: não calculado neste formato'); return $linhas }
+    try {
+        $corpo = New-Object byte[] ($d.Length - $dados)
+        [Array]::Copy($d, $dados, $corpo, 0, $corpo.Length)
+        $claro = $corpo
+        if ($cifra) {
+            # the session key opened with the retail console key (then the devkit one, all zeros); the image is AES-128-CBC,
+            # IV zero, as one stream
+            $chaveCifrada = New-Object byte[] 16; [Array]::Copy($d, $seg + 0x150, $chaveCifrada, 0, 16)
+            $tam = $corpo.Length - ($corpo.Length % 16)
+            foreach ($console in @([byte[]](0x20, 0xB1, 0x85, 0xA5, 0x9D, 0x28, 0xFD, 0xC3, 0x40, 0x58, 0x3F, 0xBB, 0x08, 0x96, 0xBF, 0x91), (New-Object byte[] 16))) {
+                $aes = [Security.Cryptography.Aes]::Create(); $aes.Padding = 'None'
+                $aes.Mode = 'ECB'; $aes.Key = $console
+                $sessao = $aes.CreateDecryptor().TransformFinalBlock($chaveCifrada, 0, 16)
+                $aes.Mode = 'CBC'; $aes.Key = $sessao; $aes.IV = New-Object byte[] 16
+                $claro = New-Object byte[] $corpo.Length
+                [void]$aes.CreateDecryptor().TransformBlock($corpo, 0, $tam, $claro, 0)
+                $aes.Dispose()
+                if ($comp -eq 1 -or ($claro[0] -eq 0x4D -and $claro[1] -eq 0x5A)) { break }
+            }
+        }
+        $imagem = $claro
+        if ($comp -eq 1) {
+            # basic compression: (data size, zeros after it) pairs after the format header
+            $blocos = [int](((& $u32 $formato) - 8) / 8)
+            $ms = New-Object IO.MemoryStream
+            $p = 0
+            for ($b = 0; $b -lt $blocos; $b++) {
+                $dt = [int](& $u32 ($formato + 8 + $b * 8)); $zt = [int](& $u32 ($formato + 12 + $b * 8))
+                $dt = [Math]::Min($dt, $claro.Length - $p)
+                $ms.Write($claro, $p, $dt); $p += $dt
+                if ($zt -gt 0) { $ms.Write((New-Object byte[] $zt), 0, $zt) }
+            }
+            $imagem = $ms.ToArray()
+        }
+        # the image at the size the security header gives (the zeros at its end may or may not be in the file)
+        $tamImagem = [int](& $u32 ($seg + 4))
+        if ($tamImagem -gt 0 -and $imagem.Length -ne $tamImagem) {
+            $justa = New-Object byte[] $tamImagem
+            [Array]::Copy($imagem, $justa, [Math]::Min($imagem.Length, $tamImagem))
+            $imagem = $justa
+        }
+        $pe = if ($imagem.Length -ge 2 -and $imagem[0] -eq 0x4D -and $imagem[1] -eq 0x5A) { 'MZ ok' } else { 'sem MZ: chave ou formato desconhecido' }
+        $sha = [Security.Cryptography.SHA1]::Create()
+        $h = ([BitConverter]::ToString($sha.ComputeHash($imagem)) -replace '-', '').ToLower()
+        $linhas.Add("imagem decodificada: $($imagem.Length) bytes, $pe, SHA-1 $h")
+        $script:SHA1_IMAGEM_LIDA = $h
+        if ($JOGO['sha1_imagem']) {
+            $linhas.Add($(if ($h -eq $JOGO['sha1_imagem']) { 'o código é o MESMO da versão do port (só o arquivo .xex foi regravado)' }
+                          else { "o código é de outra edição (a do port: $($JOGO['sha1_imagem']))" }))
+        }
+    } catch { $linhas.Add("hash da imagem: falhou ($_)") }
+    return $linhas
+}
+
 # ---------------------------------------------------------------------------- 1. ferramentas
 # done before but the tools this generator wants are not there (a newer SDK, a deleted folder): again
 if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe')) -or -not (Test-Path (Join-Path $LLVM 'bin\clang++.exe'))) {
@@ -354,8 +443,28 @@ Etapa 2 '2_jogo' {
     Ler-Xex $Iso $lido
     $sha = (Get-FileHash $lido -Algorithm SHA1).Hash.ToLower()
     if ($sha -ne $JOGO['sha1_xex']) {
-        Remove-Item $lido -ErrorAction SilentlyContinue
-        throw "este jogo não é a versão do port ($($JOGO['versao']), default.xex SHA-1 $($JOGO['sha1_xex']); a sua: $sha)"
+        # the disc of another port's game picked by mistake (report 1266: the Saints Row image in DiRT 2's port):
+        # named, with what to pick instead
+        $outros = @{ 'bcaec56eabad135071ee879b4bbcc6aa1e3362b8' = "Asura's Wrath"
+                     '98bff97ab205fc9893bf49e8c79b26711f6b18db' = "Dante's Inferno"
+                     'cdcbe29702fbf18e3e63002096d94d081cbf488f' = 'DiRT 2'
+                     'c2646093ff3926141fcf4fd630e876873d1caece' = 'Saints Row' }
+        if ($outros.ContainsKey($sha)) {
+            Remove-Item $lido -ErrorAction SilentlyContinue
+            throw "a .iso escolhida é do jogo $($outros[$sha]), não do $($JOGO['titulo']). Escolha a .iso do $($JOGO['titulo']) ($($JOGO['versao'])); a que foi escolhida serve no port do $($outros[$sha])."
+        }
+        # what this default.xex is, in the step's log (and so in a report): another edition, or the same game re-encoded
+        $script:SHA1_IMAGEM_LIDA = $null
+        try { foreach ($l in (Descrever-Xex $lido)) { Anotar $script:LOG "xex: $l"; Msg "xex: $l" } }
+        catch { Anotar $script:LOG "xex: não foi possível descrever ($_)" }
+        # the same code in a default.xex written differently (decrypted or decompressed by a download site; reports
+        # 868, 968, 969, 996, 1120, 1162): the decoded image is the port's, so the translation is the same and the
+        # runtime loads that file as it is (it reads every XEX2 format)
+        if (-not ($JOGO['sha1_imagem'] -and $script:SHA1_IMAGEM_LIDA -eq $JOGO['sha1_imagem'])) {
+            Remove-Item $lido -ErrorAction SilentlyContinue
+            throw "este jogo não é a versão do port ($($JOGO['versao']), default.xex SHA-1 $($JOGO['sha1_xex']); a sua: $sha)"
+        }
+        Msg "o default.xex desta cópia foi regravado, mas o código é o mesmo da versão do port: aceito"
     }
     Move-Item -Force $lido $xex
     Set-Content -Path (Join-Path $OUT 'iso.txt') -Value $Iso -Encoding UTF8
