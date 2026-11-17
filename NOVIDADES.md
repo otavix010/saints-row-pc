@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 17/11/2026 · engine 1.0.6
+### pt
+- **Ícone:** o executável do jogo passa a ter o ícone do próprio jogo, tirado da sua cópia: ele aparece no Explorer e nos atalhos, e não só na janela.
+### en
+- **Icon:** the game's executable now carries the game's own icon, taken from your copy: it shows in Explorer and in shortcuts, not only on the window.
+### es
+- **Icono:** el ejecutable del juego ahora lleva el icono del propio juego, sacado de tu copia: aparece en el Explorador y en los accesos directos, y no solo en la ventana.
+
 ## 16/11/2026 · engine 1.0.5
 ### pt
 - **Abertura:** a janela do jogo continua respondendo enquanto os shaders são preparados na abertura. Em computadores mais fracos essa etapa leva minutos, e o Windows chegava a oferecer fechar o jogo (erro 0xCFFFFFFF).

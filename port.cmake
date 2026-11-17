@@ -25,6 +25,12 @@ function(port_setup target)
         target_precompile_headers(${target}_recomp PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/port/guest_lock.h")
     endif()
     target_link_options(${target} PRIVATE "LINKER:/MAP:${CMAKE_CURRENT_BINARY_DIR}/${target}.map")
+    # the game's own icon in the executable (Explorer, shortcuts, the taskbar before the window sets its own): the
+    # translator writes it as a resource file from the player's copy of the game (generated/default/icone.res), which
+    # the linker takes as it is
+    if(WIN32 AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/generated/default/icone.res")
+        target_link_options(${target} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/generated/default/icone.res")
+    endif()
     if(PORT_CPU_NATIVO)
         target_compile_options(${target} PRIVATE -march=native)
         target_compile_definitions(${target} PRIVATE PORT_CPU_NATIVO=1)  # said in the session's performance file

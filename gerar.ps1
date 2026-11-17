@@ -10,6 +10,8 @@
     3. tradução: o código PowerPC do jogo vira C++ (generated\);
     4. compilação;
     5. pronto para jogar (jogar.cmd).
+  Nos jogos com conteúdo extra (DLC), os pacotes deixados na pasta da .iso (soltos ou em .zip, .7z, .rar...) são
+  achados a cada vez que isto roda; os compactados são extraídos para a pasta dlc do port.
   Os logs de cada etapa ficam em out\gerar\. O jogo e a versão esperada estão em config\jogo.txt.
 
 .PARAMETER Iso
@@ -41,12 +43,12 @@ foreach ($linha in Get-Content (Join-Path $R 'config\jogo.txt') -Encoding UTF8) 
     if ($linha -match '^\s*([a-z0-9_]+)\s*=\s*(.*?)\s*$') { $JOGO[$Matches[1]] = $Matches[2] }
 }
 # the tools, pinned
-# the Otavix Engine 360 1.0.5 (the runtime, the translator and their headers and libraries, in the same layout as the
+# the Otavix Engine 360 1.0.6 (the runtime, the translator and their headers and libraries, in the same layout as the
 # ReXGlue SDK it started from); its binaries come from the launcher's server only
-$SDK_VERSAO = 'otx-1.0.5'
+$SDK_VERSAO = 'otx-1.0.6'
 $SDK_URLS = @(
-    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/otavix-engine-360/v1.0.5/otavix-engine-360-1.0.5-win-amd64.zip')
-$SDK_SHA256 = 'fc07f67adb145bc36fa6d26a699b69e1f8cbd149ee07c48cc4aca54fc3e0320a'
+    'https://otavix-launcher.otavix-launcher-servidor.workers.dev/v1/arquivos/releases/otavix010/otavix-engine-360/v1.0.6/otavix-engine-360-1.0.6-win-amd64.zip')
+$SDK_SHA256 = '7724fe38138069970ebe56b63012d4bc72b8ad5b8a145b6f1172fcae54655cbc'
 $LLVM_VERSAO = '23.1.3'
 $LLVM_URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSAO/clang%2Bllvm-$LLVM_VERSAO-x86_64-pc-windows-msvc.tar.zst"
 $LLVM_SHA256 = '7e69dc07a4536b79ff24a651a2611990bf8eaab17ea560f1092707c4f31ba01d'
@@ -468,6 +470,158 @@ Etapa 2 '2_jogo' {
     }
     Move-Item -Force $lido $xex
     Set-Content -Path (Join-Path $OUT 'iso.txt') -Value $Iso -Encoding UTF8
+}
+
+# The game's extra content (DLC), for the games whose config\jogo.txt says dlc=sim: looked for beside the disc image
+# every time this runs. Packages lying there (Xbox Live files with no extension, in any subfolder) are read by the
+# game where they are; compressed files (.zip, .7z, .rar and the others Windows opens) that hold packages of this
+# game are taken out into the port's dlc folder; another .iso there is opened when it is a plain data image. Nothing
+# of it is needed: without packages the game is the disc's.
+function Ler-Pacote([string]$arq) {
+    # the name a content package gives itself, when the file is one of this game's (marketplace content, its title);
+    # $null otherwise
+    try {
+        $f = [IO.File]::OpenRead($arq)
+        try {
+            if ($f.Length -lt 0xA000) { return $null }
+            $b = New-Object byte[] 0x520
+            if ($f.Read($b, 0, $b.Length) -ne $b.Length) { return $null }
+        } finally { $f.Close() }
+    } catch { return $null }
+    $sig = [Text.Encoding]::ASCII.GetString($b, 0, 4)
+    if ($sig -ne 'LIVE' -and $sig -ne 'PIRS' -and $sig -ne 'CON ') { return $null }
+    $tipo = ([int]$b[0x344] -shl 24) -bor ([int]$b[0x345] -shl 16) -bor ([int]$b[0x346] -shl 8) -bor [int]$b[0x347]
+    $titulo = '{0:X2}{1:X2}{2:X2}{3:X2}' -f $b[0x360], $b[0x361], $b[0x362], $b[0x363]
+    if ($tipo -ne 2 -or $titulo -ne $JOGO['title_id'].ToUpper()) { return $null }
+    $nome = [Text.Encoding]::BigEndianUnicode.GetString($b, 0x411, 0x100).Split([char]0)[0].Trim()
+    if (-not $nome) { $nome = [IO.Path]::GetFileName($arq) }
+    return $nome
+}
+function Achar-7z {
+    foreach ($p in "$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe") {
+        if ($p -and (Test-Path -LiteralPath $p)) { return $p }
+    }
+    return $null
+}
+function Listar-Compactado([string]$arq) {
+    # the names inside a compressed file (or a data .iso), $null when nothing here opens it
+    $ext = [IO.Path]::GetExtension($arq).ToLower()
+    if ($ext -eq '.zip') {
+        try {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [IO.Compression.ZipFile]::OpenRead($arq)
+            try { return @($z.Entries | ForEach-Object { $_.FullName }) } finally { $z.Dispose() }
+        } catch { }
+    }
+    $tar = "$env:SystemRoot\System32\tar.exe"
+    if (Test-Path $tar) {
+        $nomes = & $tar -tf $arq 2>$null
+        if ($LASTEXITCODE -eq 0 -and $nomes) { return @($nomes) }
+    }
+    $z7 = Achar-7z
+    if ($z7) {
+        $linhas = & $z7 l -slt -ba $arq 2>$null
+        if ($LASTEXITCODE -eq 0) { return @($linhas | Where-Object { $_ -like 'Path = *' } | ForEach-Object { $_.Substring(7) }) }
+    }
+    return $null
+}
+function Extrair-Compactado([string]$arq, [string]$destino) {
+    New-Item -ItemType Directory -Force $destino | Out-Null
+    $ext = [IO.Path]::GetExtension($arq).ToLower()
+    if ($ext -eq '.zip') {
+        try {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $z = [IO.Compression.ZipFile]::OpenRead($arq)
+            try {
+                foreach ($e in $z.Entries) {
+                    if ($e.Name -notmatch '^[0-9A-Fa-f]{42}$') { continue }
+                    [IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path $destino $e.Name), $true)
+                }
+            } finally { $z.Dispose() }
+            return $true
+        } catch { }
+    }
+    $tar = "$env:SystemRoot\System32\tar.exe"
+    if (Test-Path $tar) {
+        & $tar -xf $arq -C $destino 2>$null
+        if ($LASTEXITCODE -eq 0) { return $true }
+    }
+    $z7 = Achar-7z
+    if ($z7) {
+        & $z7 x -y "-o$destino" $arq 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { return $true }
+    }
+    return $false
+}
+function Achar-Dlc([string]$iso) {
+    $dlc = Join-Path $R 'dlc'
+    $pasta = if (Test-Path -LiteralPath $iso -PathType Container) { $iso } else { [IO.Path]::GetDirectoryName($iso) }
+    if (-not $pasta -or -not (Test-Path -LiteralPath $pasta)) { return }
+    # a disc's root or a whole drive is not searched in depth
+    $fundo = if ([IO.Path]::GetPathRoot($pasta) -eq $pasta) { 0 } else { 2 }
+    $arquivos = @(Get-ChildItem -LiteralPath $pasta -File -Recurse -Depth $fundo -ErrorAction SilentlyContinue |
+                  Where-Object { -not $_.FullName.StartsWith($R, [StringComparison]::OrdinalIgnoreCase) })
+    $isoCheia = if (Test-Path -LiteralPath $iso -PathType Leaf) { [IO.Path]::GetFullPath($iso) } else { '' }
+    $compactados = '.zip', '.7z', '.rar', '.tar', '.gz', '.tgz', '.bz2', '.xz', '.zst', '.cab', '.iso', '.001'
+    foreach ($a in $arquivos) {
+        if ($a.Extension.ToLower() -notin $compactados -or $a.FullName -eq $isoCheia) { continue }
+        if ($a.Extension -eq '.iso') {
+            # a console's disc image is not a data image: only one with the ISO 9660 mark is opened
+            try {
+                $f = [IO.File]::OpenRead($a.FullName)
+                try {
+                    $m = New-Object byte[] 5
+                    $f.Position = 0x8001
+                    [void]$f.Read($m, 0, 5)
+                } finally { $f.Close() }
+                if ([Text.Encoding]::ASCII.GetString($m) -ne 'CD001') { continue }
+            } catch { continue }
+        }
+        $destino = Join-Path $dlc ($a.BaseName -replace '[^\w\-\. \(\)'']', '_')
+        $marca = "$destino.ok"
+        $assinatura = "$($a.FullName)|$($a.Length)|$($a.LastWriteTimeUtc.Ticks)"
+        if ((Test-Path -LiteralPath $marca) -and (Get-Content -LiteralPath $marca -Encoding UTF8 | Select-Object -First 1) -eq $assinatura) { continue }
+        $nomes = Listar-Compactado $a.FullName
+        if ($null -eq $nomes) {
+            if ($a.Extension -ne '.iso') { Msg "DLC: não consegui abrir $($a.Name) para ver se tem DLC (se tiver, extraia para $dlc)" }
+            continue
+        }
+        if (-not ($nomes | Where-Object { ($_ -replace '[\\/]+$', '').Split('\/')[-1] -match '^[0-9A-Fa-f]{42}$' })) { continue }
+        Msg "DLC: extraindo de $($a.Name) ..."
+        if (-not (Extrair-Compactado $a.FullName $destino)) {
+            Msg "DLC: não consegui extrair $($a.Name); extraia para $dlc"
+            continue
+        }
+        New-Item -ItemType Directory -Force $dlc | Out-Null
+        Set-Content -LiteralPath $marca -Value $assinatura -Encoding UTF8
+    }
+    # the packages: those lying beside the disc image stay there (their folders written down for the game), those in
+    # the port's dlc folder are found by the game itself
+    $pastas = New-Object System.Collections.Generic.List[string]
+    $achados = New-Object System.Collections.Generic.List[string]
+    $soltos = @($arquivos | Where-Object { $_.Name -match '^[0-9A-Fa-f]{42}$' })
+    $extraidos = @(if (Test-Path -LiteralPath $dlc) { Get-ChildItem -LiteralPath $dlc -File -Recurse -ErrorAction SilentlyContinue |
+                                                      Where-Object { $_.Name -match '^[0-9A-Fa-f]{42}$' } })
+    $vistos = @{}
+    foreach ($a in @($extraidos) + @($soltos)) {
+        $nome = Ler-Pacote $a.FullName
+        if (-not $nome -or $vistos.ContainsKey($a.Name.ToUpper())) { continue }
+        $vistos[$a.Name.ToUpper()] = $true
+        $achados.Add($nome)
+        if (-not $a.FullName.StartsWith($dlc, [StringComparison]::OrdinalIgnoreCase) -and -not $pastas.Contains($a.DirectoryName)) {
+            $pastas.Add($a.DirectoryName)
+        }
+    }
+    if ($achados.Count -eq 0) { return }
+    New-Item -ItemType Directory -Force $dlc | Out-Null
+    [IO.File]::WriteAllLines((Join-Path $dlc 'pastas.txt'), $pastas, (New-Object Text.UTF8Encoding $false))
+    Msg "DLC: $($achados.Count) pacote(s) do jogo: $($achados -join ', ')"
+}
+if ($JOGO['dlc'] -eq 'sim') {
+    $isoDlc = if ($Iso) { $Iso } elseif (Test-Path $isoTxt) { Get-Content $isoTxt -Encoding UTF8 | Select-Object -First 1 } else { '' }
+    if ($isoDlc) {
+        try { Achar-Dlc $isoDlc } catch { Msg "DLC: a procura falhou ($_); o jogo segue sem elas" }
+    }
 }
 
 # the SDK changed since the last translation (a new engine): translation, build and the launch script again, even

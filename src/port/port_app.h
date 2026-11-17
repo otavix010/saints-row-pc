@@ -93,6 +93,31 @@ class PortApp : public rex::ReXApp {
   // the same log line thousands of times written once in 10000 (log_repeat.h)
   void OnPostInitLogging() override { port::log_repeat::Install(); }
 
+  // The game's extra content (DLC), read from the player's own packages where they are: the folder the player named
+  // (dlc_root), the port's dlc folder (what the generator took out of compressed files) and the folders the generator
+  // found packages in beside the disc image (dlc\pastas.txt, one a line). The port's root is three folders above the
+  // build, as its saves are.
+  void AddExtraContent() {
+    std::error_code ec;
+    const auto dlc = std::filesystem::weakly_canonical(
+        rex::filesystem::GetExecutableFolder() / ".." / ".." / ".." / "dlc", ec);
+    if (ec || !std::filesystem::is_directory(dlc, ec)) return;
+    std::string all = rex::cvar::GetFlagByName("dlc_root");
+    auto add = [&all](const std::string& folder) {
+      if (folder.empty() || (';' + all + ';').find(';' + folder + ';') != std::string::npos) return;
+      if (!all.empty()) all += ';';
+      all += folder;
+    };
+    add(port::ToUtf8(dlc));
+    std::ifstream list(dlc / "pastas.txt");
+    for (std::string line; std::getline(list, line);) {
+      if (line.rfind("\xEF\xBB\xBF", 0) == 0) line.erase(0, 3);
+      while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+      add(line);
+    }
+    rex::cvar::SetFlagByName("dlc_root", all);
+  }
+
   void OnPreSetup(rex::RuntimeConfig& config) override {
     if (config.gpu_plugin.empty() && !config.graphics) config.gpu_plugin = "xenos";
     // the GPU plugin loaded here, not after this hook as the runtime would: its options (resolution_scale,
@@ -105,6 +130,7 @@ class PortApp : public rex::ReXApp {
       rex::cvar::SetFlagByName("headless", "true");
     ApplyFrameRate();
     port_options::Apply();
+    AddExtraContent();
     if (const char* script = std::getenv("PORT_PAD")) {
       config.input_factory = [script = std::string(script)](bool tool_mode)
           -> std::unique_ptr<rex::system::IInputSystem> {

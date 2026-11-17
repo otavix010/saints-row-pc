@@ -15,3 +15,5 @@ folha*.png
 *.png
 filme/
 qte/
+# the player's extra content packages, taken out of compressed files by the generator
+dlc/
