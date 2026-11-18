@@ -430,7 +430,12 @@ if ($Iso -and (Test-Path -LiteralPath $Iso -PathType Container)) {
     } elseif ($extraidos.Count -gt 1) {
         throw "a pasta escolhida tem $($extraidos.Count) jogos extraídos (default.xex); escolha a pasta do jogo: $($extraidos -join ', ')"
     } else {
-        throw "a pasta escolhida não tem uma .iso nem o jogo extraído (default.xex): $pasta. O port lê a imagem do disco do Xbox 360 (um arquivo .iso, ou o .zip/.7z/.rar baixado com ela dentro) ou a pasta com os arquivos do disco extraídos. Uma pasta no formato Games on Demand não serve."
+        # what the folder holds, the largest first, said in the message (report 1348: nothing told what was there)
+        $tem = @(Get-ChildItem -LiteralPath $pasta -File -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+                 Sort-Object Length -Descending | Select-Object -First 6 |
+                 ForEach-Object { '{0} ({1:N0} MB)' -f $_.Name, ($_.Length / 1MB) })
+        $tem = if ($tem.Count) { "Os maiores arquivos dela: $($tem -join ', ')." } else { 'Ela não tem arquivos.' }
+        throw "a pasta escolhida não tem uma .iso nem o jogo extraído (default.xex): $pasta. $tem O port lê a imagem do disco do Xbox 360 (um arquivo .iso, ou o .zip/.7z/.rar baixado com ela dentro) ou a pasta com os arquivos do disco extraídos. Uma pasta no formato Games on Demand não serve."
     }
 }
 # the .iso picked again (moved, or a copy elsewhere): checked again and written down, the jogar.cmd made again; the
