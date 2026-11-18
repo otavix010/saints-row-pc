@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 18/11/2026 · engine 1.0.7
+### pt
+- **Engasgos de shader:** a primeira vez que um efeito aparece não segura mais o quadro: os shaders novos são compilados em segundo plano enquanto o jogo segue (report 1347). O objeto ou efeito novo pode levar alguns quadros para aparecer nessa primeira vez; nas seguintes ele já está guardado.
+### en
+- **Shader stutter:** the first time an effect shows up no longer holds the frame: new shaders are compiled in the background while the game goes on (report 1347). The new object or effect may take a few frames to appear that first time; after that it is already stored.
+### es
+- **Tirones de shaders:** la primera vez que aparece un efecto ya no detiene el cuadro: los shaders nuevos se compilan en segundo plano mientras el juego sigue (reporte 1347). El objeto o efecto nuevo puede tardar algunos cuadros en aparecer esa primera vez; en las siguientes ya está guardado.
+
 ## 18/11/2026 · gerador
 ### pt
 - **Gerador:** o download das ferramentas continua de onde parou quando a conexão cai, em vez de falhar no meio.
