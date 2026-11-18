@@ -4,6 +4,17 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 18/11/2026 · gerador
+### pt
+- **Gerador:** o download das ferramentas continua de onde parou quando a conexão cai, em vez de falhar no meio.
+- **Gerador:** o Visual Studio 2019 (e os anteriores) não serve para compilar o port e era aceito por engano, o que terminava em erro de compilação; agora o gerador pede o Visual Studio 2022 Build Tools e mostra o comando para instalar.
+### en
+- **Generator:** the tools download resumes where it stopped when the connection drops, instead of failing midway.
+- **Generator:** Visual Studio 2019 (and older) cannot build the port and was accepted by mistake, which ended in a build error; the generator now asks for Visual Studio 2022 Build Tools and shows the command to install it.
+### es
+- **Generador:** la descarga de las herramientas continúa donde se quedó cuando la conexión se cae, en lugar de fallar a la mitad.
+- **Generador:** Visual Studio 2019 (y los anteriores) no sirve para compilar el port y se aceptaba por error, lo que terminaba en un error de compilación; ahora el generador pide Visual Studio 2022 Build Tools y muestra el comando para instalarlo.
+
 ## 17/11/2026 · engine 1.0.6
 ### pt
 - **Ícone:** o executável do jogo passa a ter o ícone do próprio jogo, tirado da sua cópia: ele aparece no Explorer e nos atalhos, e não só na janela.

@@ -100,12 +100,21 @@ function Etapa([int]$n, [string]$nome, [scriptblock]$corpo) {
 function Baixar([string]$url, [string]$destino) {
     Msg "baixando $(Split-Path $destino -Leaf) ..."
     $tmp = "$destino.parcial"
-    try { Exec "curl.exe -L --fail --retry 3 -o `"$tmp`" `"$url`"" }
-    catch {
-        # curl 35 (CRYPT_E_NO_REVOCATION_CHECK): a rede ou o antivírus do jogador não deixa o schannel consultar a
-        # revogação do certificado (report 47 do launcher); de novo sem essa consulta, o certificado ainda conferido
-        if ("$_" -notmatch 'código 35') { throw }
-        Exec "curl.exe -L --fail --retry 3 --ssl-no-revoke -o `"$tmp`" `"$url`""
+    $extra = ''
+    for ($vez = 1; ; $vez++) {
+        $havia = Test-Path -LiteralPath $tmp
+        try { Exec "curl.exe -L --fail --retry 3 -C - $extra-o `"$tmp`" `"$url`""; break }
+        catch {
+            # curl 35 (CRYPT_E_NO_REVOCATION_CHECK): a rede ou o antivírus do jogador não deixa o schannel consultar a
+            # revogação do certificado (report 47 do launcher); de novo sem essa consulta, o certificado ainda conferido
+            if ("$_" -match 'código 35\b' -and -not $extra) { $extra = '--ssl-no-revoke '; continue }
+            # a piece left from before that the server will not continue: from the start
+            if ($havia -and "$_" -match 'código (22|33|36)\b') { Remove-Item -Force -LiteralPath $tmp -ErrorAction SilentlyContinue; continue }
+            # the connection dropped midway (report 1346): the same file again, from where it stopped
+            if ($vez -ge 5 -or "$_" -notmatch 'código (6|7|18|28|52|55|56|92)\b') { throw }
+            Msg "a conexão caiu; continuando o download (tentativa $($vez + 1) de 5) ..."
+            Start-Sleep -Seconds 3
+        }
     }
     Move-Item -Force $tmp $destino
 }
@@ -141,11 +150,12 @@ function Apagar([string[]]$caminhos) {
     foreach ($c in $caminhos) { Remove-Item -Recurse -Force -LiteralPath $c -ErrorAction SilentlyContinue }
 }
 
-# the Visual Studio with the C++ tools (MSVC's headers and libraries, the Windows SDK, CMake and Ninja)
+# the Visual Studio with the C++ tools (MSVC's headers and libraries, the Windows SDK, CMake and Ninja): the 2022
+# (17.1) or a newer one, whose C++ library has what the engine's headers use (report 1343: the 2019's has not)
 function Achar-VS {
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     if (-not (Test-Path $vswhere)) { return $null }
-    $p = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project -property installationPath
+    $p = & $vswhere -latest -version '[17.1,)' -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project -property installationPath
     if ($p) { return ($p | Select-Object -First 1) }
     return $null
 }
@@ -343,7 +353,7 @@ if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe')) -or -not (Test-Path (Joi
 Etapa 1 '1_ferramentas' {
     $vs = Achar-VS
     if (-not $vs) {
-        throw "falta o Visual Studio Build Tools com C++ e CMake. Instale com:`r`n  winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override `"--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended`""
+        throw "falta o Visual Studio 2022 Build Tools (ou mais novo) com C++ e CMake; o 2019 e os anteriores não servem. Instale com:`r`n  winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override `"--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended`""
     }
     Anotar $script:LOG "Visual Studio: $vs"
     New-Item -ItemType Directory -Force $FERRAMENTAS | Out-Null
@@ -488,14 +498,42 @@ function Ler-Pacote([string]$arq) {
             if ($f.Read($b, 0, $b.Length) -ne $b.Length) { return $null }
         } finally { $f.Close() }
     } catch { return $null }
+    $nome = Nome-Do-Pacote $b
+    if ($nome -eq '') { $nome = [IO.Path]::GetFileName($arq) }
+    return $nome
+}
+function Nome-Do-Pacote([byte[]]$b) {
+    # from a package's first 0x520 bytes: its name ('' when it has none), $null when it is not this game's
     $sig = [Text.Encoding]::ASCII.GetString($b, 0, 4)
     if ($sig -ne 'LIVE' -and $sig -ne 'PIRS' -and $sig -ne 'CON ') { return $null }
     $tipo = ([int]$b[0x344] -shl 24) -bor ([int]$b[0x345] -shl 16) -bor ([int]$b[0x346] -shl 8) -bor [int]$b[0x347]
     $titulo = '{0:X2}{1:X2}{2:X2}{3:X2}' -f $b[0x360], $b[0x361], $b[0x362], $b[0x363]
     if ($tipo -ne 2 -or $titulo -ne $JOGO['title_id'].ToUpper()) { return $null }
-    $nome = [Text.Encoding]::BigEndianUnicode.GetString($b, 0x411, 0x100).Split([char]0)[0].Trim()
-    if (-not $nome) { $nome = [IO.Path]::GetFileName($arq) }
-    return $nome
+    return [Text.Encoding]::BigEndianUnicode.GetString($b, 0x411, 0x100).Split([char]0)[0].Trim()
+}
+function Zip-De-Outro-Jogo([string]$arq) {
+    # $true when the .zip was read and none of the packages in it is this game's
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $z = [IO.Compression.ZipFile]::OpenRead($arq)
+        try {
+            foreach ($e in $z.Entries) {
+                if ($e.Name -notmatch '^[0-9A-Fa-f]{42}$') { continue }
+                $b = New-Object byte[] 0x520
+                $f = $e.Open()
+                try {
+                    $lidos = 0
+                    while ($lidos -lt $b.Length) {
+                        $n = $f.Read($b, $lidos, $b.Length - $lidos)
+                        if ($n -le 0) { break }
+                        $lidos += $n
+                    }
+                } finally { $f.Dispose() }
+                if ($lidos -eq $b.Length -and $null -ne (Nome-Do-Pacote $b)) { return $false }
+            }
+        } finally { $z.Dispose() }
+        return $true
+    } catch { return $false }
 }
 function Achar-7z {
     foreach ($p in "$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe") {
@@ -587,12 +625,22 @@ function Achar-Dlc([string]$iso) {
             continue
         }
         if (-not ($nomes | Where-Object { ($_ -replace '[\\/]+$', '').Split('\/')[-1] -match '^[0-9A-Fa-f]{42}$' })) { continue }
+        New-Item -ItemType Directory -Force $dlc | Out-Null
+        if ($a.Extension -eq '.zip' -and (Zip-De-Outro-Jogo $a.FullName)) {
+            Set-Content -LiteralPath $marca -Value $assinatura -Encoding UTF8
+            continue
+        }
         Msg "DLC: extraindo de $($a.Name) ..."
         if (-not (Extrair-Compactado $a.FullName $destino)) {
             Msg "DLC: não consegui extrair $($a.Name); extraia para $dlc"
             continue
         }
-        New-Item -ItemType Directory -Force $dlc | Out-Null
+        # what came out is another game's: not kept
+        if (-not (Get-ChildItem -LiteralPath $destino -File -Recurse -ErrorAction SilentlyContinue |
+                  Where-Object { $_.Name -match '^[0-9A-Fa-f]{42}$' -and (Ler-Pacote $_.FullName) })) {
+            Msg "DLC: $($a.Name) é de outro jogo; deixado de lado"
+            Apagar @($destino)
+        }
         Set-Content -LiteralPath $marca -Value $assinatura -Encoding UTF8
     }
     # the packages: those lying beside the disc image stay there (their folders written down for the game), those in
