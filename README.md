@@ -16,6 +16,7 @@
   <a href="#plataformas">Plataformas</a> ·
   <a href="#requisitos">Requisitos</a> ·
   <a href="#desempenho-medido">Desempenho</a> ·
+  <a href="#teclado-e-mouse">Teclado e mouse</a> ·
   <a href="#perguntas-frequentes">Perguntas frequentes</a> ·
   <a href="#gerar-à-mão-sem-o-launcher">Gerar à mão (sem o launcher)</a> ·
   <a href="#opções">Opções</a> ·
@@ -89,6 +90,45 @@ FPS de jogo. **Só colocamos o que foi medido**, e com **um jogo só rodando** (
 | **Portátil** | Legion Go S (Linux) | Radeon 780M | não suportado |
 
 DLSS e XeSS não existem para estes jogos (o Xbox 360 não fornece vetores de movimento); o FSR e o CAS atuam só na saída.
+
+<!-- teclado e mouse: gerado por teclas_360.py -->
+## Teclado e mouse
+
+O jogo aceita teclado e mouse junto com o controle (ou sem ele): cada botão do controle do Xbox 360 tem uma tecla. O movimento do mouse é o analógico direito: um movimento rápido é um toque no analógico e um movimento contínuo o mantém inclinado. Os botões do mouse entram no mapa de teclas. O cursor fica preso na janela depois que você usa uma tecla do jogo; Alt+Tab solta.
+
+Para trocar as teclas, desligar o teclado ou o mouse e ajustar a sensibilidade: **Opções avançadas → Controles** no launcher (clique em **Trocar** e aperte a tecla nova). À mão, no `opcoes.toml`: `kbm`, `kbm_mouse`, `mnk_sensitivity_percent` e uma tabela `[keybind]` com as teclas de cada botão (`a = "space enter"`; os nomes são os das teclas pela posição, e `mouse1` a `mouse5`).
+
+Teclas padrão:
+
+| Botão do controle | Tecla |
+|---|---|
+| Analógico esquerdo ↑ (andar) | W |
+| Analógico esquerdo ↓ (andar) | S |
+| Analógico esquerdo ← (andar) | A |
+| Analógico esquerdo → (andar) | D |
+| A | Shift esquerdo / Enter |
+| B | R / Backspace |
+| X | Espaço |
+| Y | E |
+| LB | Q |
+| RB | F |
+| LT (freio e ré no carro) | Mouse 2 |
+| RT (atirar / acelerar) | Mouse 1 |
+| Start (pausa) | Esc |
+| Back | Tab |
+| Direcional ↑ | ↑ |
+| Direcional ↓ | ↓ |
+| Direcional ← | ← |
+| Direcional → | → |
+| Analógico direito ↑ (câmera) | Num 8 |
+| Analógico direito ↓ (câmera) | Num 2 |
+| Analógico direito ← (câmera) | Num 4 |
+| Analógico direito → (câmera) | Num 6 |
+| Analógico esquerdo (clique) | Ctrl esquerdo |
+| Analógico direito (clique) | Mouse 3 / C |
+
+F3, F4, F7, F10 e a tecla ao lado do 1 (crase) são atalhos do próprio port e ficam fora do mapa.
+<!-- fim do teclado e mouse -->
 
 ## Problemas conhecidos
 

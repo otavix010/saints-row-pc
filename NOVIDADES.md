@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 18/11/2026 · engine 1.0.8
+### pt
+- **Teclado e mouse:** o jogo agora aceita teclado e mouse junto com o controle (ou sem ele), com o movimento do mouse no analógico direito e os botões dele no mapa de teclas. As teclas padrão estão na seção Teclado e mouse do README; para trocá-las, desligar o teclado ou o mouse e ajustar a sensibilidade, use Opções avançadas → Controles na versão mais nova do launcher.
+### en
+- **Keyboard and mouse:** the game now takes keyboard and mouse together with the controller (or without one), with the mouse's movement on the right stick and its buttons in the key map. The default keys are in the README's Keyboard and mouse section; to change them, turn the keyboard or the mouse off and set the sensitivity, use Advanced options → Controls in the newest version of the launcher.
+### es
+- **Teclado y ratón:** el juego ahora acepta teclado y ratón junto con el mando (o sin él), con el movimiento del ratón en el stick derecho y sus botones en el mapa de teclas. Las teclas por defecto están en la sección Teclado e mouse del README; para cambiarlas, desactivar el teclado o el ratón y ajustar la sensibilidad, usa Opciones avanzadas → Controles en la versión más nueva del launcher.
+
 ## 18/11/2026 · engine 1.0.7
 ### pt
 - **Engasgos de shader:** a primeira vez que um efeito aparece não segura mais o quadro: os shaders novos são compilados em segundo plano enquanto o jogo segue (report 1347). O objeto ou efeito novo pode levar alguns quadros para aparecer nessa primeira vez; nas seguintes ele já está guardado.

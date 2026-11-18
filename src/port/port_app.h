@@ -48,6 +48,11 @@
 #include "input_lock.h"
 #include "log_repeat.h"
 #include "pad_script.h"
+// the game's own keys for keyboard and mouse, when the port has them (src/teclas_padrao.h)
+#if __has_include("../teclas_padrao.h")
+#include "../teclas_padrao.h"
+#define PORT_HAS_KEYS 1
+#endif
 #include "port_options.h"
 #include "window_icon.h"
 
@@ -118,6 +123,25 @@ class PortApp : public rex::ReXApp {
     rex::cvar::SetFlagByName("dlc_root", all);
   }
 
+  // Keyboard and mouse: the engine plays them as a controller (mnk_mode), each button's keys in an option of its
+  // (keybind_a, keybind_left_trigger...). The game's own keys ("a=space enter;x=mouse1;...", kPortKeys) are set where
+  // the player left the option alone; the launcher's Controls page writes the player's in the options file.
+  void ApplyKeys() {
+#ifdef PORT_HAS_KEYS
+    const std::string all = kPortKeys;
+    for (size_t i = 0; i < all.size();) {
+      size_t end = all.find(';', i);
+      if (end == std::string::npos) end = all.size();
+      const std::string entry = all.substr(i, end - i);
+      if (const size_t eq = entry.find('='); eq != std::string::npos)
+        port_options::SetUnlessChosen(("keybind_" + entry.substr(0, eq)).c_str(), entry.substr(eq + 1));
+      i = end + 1;
+    }
+    if (!kPortMouse) port_options::SetUnlessChosen("kbm_mouse", "false");
+    port_options::SetUnlessChosen("mnk_sensitivity_percent", std::to_string(kPortMouseSensitivity));
+#endif
+  }
+
   void OnPreSetup(rex::RuntimeConfig& config) override {
     if (config.gpu_plugin.empty() && !config.graphics) config.gpu_plugin = "xenos";
     // the GPU plugin loaded here, not after this hook as the runtime would: its options (resolution_scale,
@@ -130,6 +154,7 @@ class PortApp : public rex::ReXApp {
       rex::cvar::SetFlagByName("headless", "true");
     ApplyFrameRate();
     port_options::Apply();
+    ApplyKeys();
     AddExtraContent();
     if (const char* script = std::getenv("PORT_PAD")) {
       config.input_factory = [script = std::string(script)](bool tool_mode)
