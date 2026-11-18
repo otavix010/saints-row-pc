@@ -106,15 +106,15 @@ Teclas padrão:
 | Analógico esquerdo ↓ (andar) | S |
 | Analógico esquerdo ← (andar) | A |
 | Analógico esquerdo → (andar) | D |
-| A | Shift esquerdo / Enter |
-| B | R / Backspace |
-| X | Espaço |
-| Y | E |
-| LB | Q |
-| RB | F |
-| LT (freio e ré no carro) | Mouse 2 |
-| RT (atirar / acelerar) | Mouse 1 |
-| Start (pausa) | Esc |
+| A (recarregar / pegar arma) | R / Enter |
+| B (inventário) | Q / Backspace |
+| X (pular) | Espaço |
+| Y (ação / entrar no carro) | E |
+| LB (chute) | F |
+| RB (correr) | Shift esquerdo |
+| LT (ataque secundário) | Mouse 2 |
+| RT (ataque principal) | Mouse 1 |
+| Start (pausa e mapa) | Esc |
 | Back | Tab |
 | Direcional ↑ | ↑ |
 | Direcional ↓ | ↓ |
@@ -124,7 +124,7 @@ Teclas padrão:
 | Analógico direito ↓ (câmera) | Num 2 |
 | Analógico direito ← (câmera) | Num 4 |
 | Analógico direito → (câmera) | Num 6 |
-| Analógico esquerdo (clique) | Ctrl esquerdo |
+| Analógico esquerdo (clique) (agachar) | Ctrl esquerdo |
 | Analógico direito (clique) | Mouse 3 / C |
 
 F3, F4, F7, F10 e a tecla ao lado do 1 (crase) são atalhos do próprio port e ficam fora do mapa.

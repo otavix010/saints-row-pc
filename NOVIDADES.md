@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 18/11/2026 · teclas
+### pt
+- **Teclas padrão:** as teclas do teclado e do mouse passam a seguir as ações do jogo a pé: ataque principal no botão esquerdo do mouse, secundário no direito, recarregar no R, pular no Espaço, ação e entrar no carro no E, correr no Shift esquerdo, chute no F, inventário no Q e agachar no Ctrl esquerdo. Quem já trocou teclas pelo launcher fica com as suas.
+### en
+- **Default keys:** the keyboard and mouse keys now follow the game's on-foot actions: primary attack on the left mouse button, secondary on the right one, reload on R, jump on Space, action and enter car on E, sprint on left Shift, kick on F, inventory on Q and crouch on left Ctrl. Keys you changed in the launcher stay yours.
+### es
+- **Teclas por defecto:** las teclas del teclado y del ratón ahora siguen las acciones del juego a pie: ataque principal en el botón izquierdo del ratón, secundario en el derecho, recargar en R, saltar en Espacio, acción y entrar al coche en E, correr en Mayús izquierda, patada en F, inventario en Q y agacharse en Ctrl izquierdo. Las teclas que cambiaste en el launcher siguen siendo las tuyas.
+
 ## 18/11/2026 · engine 1.0.8
 ### pt
 - **Teclado e mouse:** o jogo agora aceita teclado e mouse junto com o controle (ou sem ele), com o movimento do mouse no analógico direito e os botões dele no mapa de teclas. As teclas padrão estão na seção Teclado e mouse do README; para trocá-las, desligar o teclado ou o mouse e ajustar a sensibilidade, use Opções avançadas → Controles na versão mais nova do launcher.
