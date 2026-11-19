@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 19/11/2026 · gerador
+### pt
+- **Gerador:** a compilação não para mais com "build.ninja still dirty" quando os arquivos da engine chegam com data no futuro (acontecia por algumas horas depois de cada atualização, em PCs com fuso horário a oeste do Brasil).
+### en
+- **Generator:** the build no longer stops with "build.ninja still dirty" when the engine's files arrive dated in the future (it happened for a few hours after each update, on PCs in time zones west of Brazil).
+### es
+- **Generador:** la compilación ya no se detiene con "build.ninja still dirty" cuando los archivos de la engine llegan con fecha en el futuro (pasaba durante algunas horas después de cada actualización, en PCs con huso horario al oeste de Brasil).
+
 ## 18/11/2026 · teclas
 ### pt
 - **Teclas padrão:** as teclas do teclado e do mouse passam a seguir as ações do jogo a pé: ataque principal no botão esquerdo do mouse, secundário no direito, recarregar no R, pular no Espaço, ação e entrar no carro no E, correr no Shift esquerdo, chute no F, inventário no Q e agachar no Ctrl esquerdo. Quem já trocou teclas pelo launcher fica com as suas.

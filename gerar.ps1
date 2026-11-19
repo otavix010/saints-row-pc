@@ -699,6 +699,21 @@ Etapa 3 '3_traducao' {
 Etapa 4 '4_compilar' {
     $vs = Achar-VS
     $build = Join-Path $R 'out\build\win-amd64-release'
+    # files dated in the future (a zip keeps its maker's local time, with no time zone: west of it, the SDK's files
+    # came out up to hours ahead; report 1359) keep build.ninja always out of date and ninja gives up: they are dated
+    # now. The port's own files and the generated ones too, should the clock have been wrong when they were written.
+    $agora = Get-Date
+    $futuros = 0
+    foreach ($pasta in $SDK, (Join-Path $R 'generated'), (Join-Path $R 'src'), (Join-Path $R 'config')) {
+        if (-not (Test-Path -LiteralPath $pasta)) { continue }
+        Get-ChildItem -LiteralPath $pasta -File -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $agora } |
+            ForEach-Object { $_.LastWriteTime = $agora; $futuros++ }
+    }
+    foreach ($f in 'CMakeLists.txt', 'CMakePresets.json', 'port.cmake') {
+        $i = Get-Item -LiteralPath (Join-Path $R $f) -ErrorAction SilentlyContinue
+        if ($i -and $i.LastWriteTime -gt $agora) { $i.LastWriteTime = $agora; $futuros++ }
+    }
+    if ($futuros) { Anotar $script:LOG "$futuros arquivo(s) com data no futuro: datados de agora" }
     # configured again (the SDK or the compiler may have changed), the rest of the folder kept: objects still good
     # are reused, and nothing the game wrote there is lost
     Remove-Item -Recurse -Force (Join-Path $build 'CMakeCache.txt'), (Join-Path $build 'CMakeFiles') -ErrorAction SilentlyContinue
