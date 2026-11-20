@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 20/11/2026 · gerador
+### pt
+- **Gerador:** a compilação não falha mais com "\NVIDIA was unexpected at this time" em PCs com uma entrada entre aspas no PATH do Windows (deixada por alguns instaladores).
+### en
+- **Generator:** the build no longer fails with "\NVIDIA was unexpected at this time" on PCs with a quoted entry in the Windows PATH (left by some installers).
+### es
+- **Generador:** la compilación ya no falla con "\NVIDIA was unexpected at this time" en PCs con una entrada entre comillas en el PATH de Windows (dejada por algunos instaladores).
+
 ## 19/11/2026 · gerador
 ### pt
 - **Gerador:** a compilação não para mais com "build.ninja still dirty" quando os arquivos da engine chegam com data no futuro (acontecia por algumas horas depois de cada atualização, em PCs com fuso horário a oeste do Brasil).

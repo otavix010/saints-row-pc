@@ -720,8 +720,11 @@ Etapa 4 '4_compilar' {
     # a script of its own, one command a line: cmd reads each line when it runs it, so the PATH the Visual Studio's
     # environment sets is the one the next lines see (and the whole build's output goes to the step's log)
     $script = Join-Path $OUT 'compilar.cmd'
+    # a PATH entry in quotes ("C:\Program Files (x86)\...", left by some installers) turns the parentheses loose in
+    # VsDevCmd.bat's if blocks: "\NVIDIA was unexpected at this time" (report 1392). Windows reads PATH without them.
     $linhas = @(
         '@echo off',
+        'set "PATH=%PATH:"=%"',
         "call `"$vs\Common7\Tools\VsDevCmd.bat`" -arch=amd64 -host_arch=amd64 >nul",
         "set `"PATH=$LLVM\bin;%PATH%`"",
         "cd /d `"$R`"",
