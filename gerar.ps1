@@ -430,6 +430,14 @@ if ($Iso -and (Test-Path -LiteralPath $Iso -PathType Container)) {
     } elseif ($extraidos.Count -gt 1) {
         throw "a pasta escolhida tem $($extraidos.Count) jogos extraídos (default.xex); escolha a pasta do jogo: $($extraidos -join ', ')"
     } else {
+        # the PlayStation 3 edition of the game picked (report 1444: EBOOT.BIN, PIC1.PNG, SND0.AT3, LIC.DAT): said plainly
+        $ps3 = @(Get-ChildItem -LiteralPath $pasta -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Name -in 'EBOOT.BIN', 'PARAM.SFO', 'PS3_DISC.SFB', 'PS3_GAME' } |
+                 ForEach-Object { $_.Name.ToUpper() } | Select-Object -Unique)
+        if ($ps3.Count -or (Split-Path -Leaf $pasta) -in 'PS3_GAME', 'USRDIR') {
+            $vistos = if ($ps3.Count) { " (tem $($ps3 -join ', '))" } else { '' }
+            throw "a pasta escolhida é a versão de PlayStation 3 do jogo$vistos`: $pasta. Este port é feito a partir do jogo de Xbox 360: ele precisa da imagem do disco do Xbox 360 (um arquivo .iso, ou o .zip/.7z/.rar baixado com ela dentro) ou da pasta com os arquivos desse disco extraídos (com o default.xex). A versão de PS3 não serve."
+        }
         # what the folder holds, the largest first, said in the message (report 1348: nothing told what was there)
         $tem = @(Get-ChildItem -LiteralPath $pasta -File -Recurse -Depth 2 -ErrorAction SilentlyContinue |
                  Sort-Object Length -Descending | Select-Object -First 6 |

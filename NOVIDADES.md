@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 22/11/2026 · gerador
+### pt
+- **Gerador:** ao escolher a pasta da versão de PlayStation 3 do jogo, a mensagem agora diz isso direto e explica que o port precisa do disco do Xbox 360.
+### en
+- **Generator:** when the folder of the PlayStation 3 edition of the game is picked, the message now says so plainly and explains that the port needs the Xbox 360 disc.
+### es
+- **Generador:** al elegir la carpeta de la versión de PlayStation 3 del juego, el mensaje ahora lo dice directamente y explica que el port necesita el disco de Xbox 360.
+
 ## 20/11/2026 · gerador
 ### pt
 - **Gerador:** a compilação não falha mais com "\NVIDIA was unexpected at this time" em PCs com uma entrada entre aspas no PATH do Windows (deixada por alguns instaladores).
