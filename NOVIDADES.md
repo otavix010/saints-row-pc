@@ -8,12 +8,15 @@ As mais novas ficam em cima.
 ### pt
 - **Gerador:** antes de baixar e compilar, confere se a placa de vídeo tem DirectX 12 e, se não tiver, avisa na hora.
 - **Gerador:** confere a .iso inteira uma vez e avisa se ela parecer danificada ou incompleta.
+- **Gerador:** se a .iso for do disco certo mas vier com a atualização do jogo embutida no executável ("com update"), a mensagem agora diz isso e pede a .iso do disco original.
 ### en
 - **Generator:** before downloading and building, checks that the video card has DirectX 12 and, if it does not, says so right away.
 - **Generator:** checks the whole .iso once and warns if it looks damaged or incomplete.
+- **Generator:** if the .iso is the right disc but came with the game's update built into the executable ("with the update"), the message now says so and asks for the .iso of the original disc.
 ### es
 - **Generador:** antes de descargar y compilar, comprueba que la tarjeta de video tenga DirectX 12 y, si no la tiene, avisa enseguida.
 - **Generador:** comprueba la .iso completa una vez y avisa si parece dañada o incompleta.
+- **Generador:** si el .iso es del disco correcto pero vino con la actualización del juego incluida en el ejecutable ("con update"), el mensaje ahora lo dice y pide el .iso del disco original.
 
 ## 22/11/2026 · gerador
 ### pt

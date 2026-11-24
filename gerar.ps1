@@ -282,6 +282,8 @@ function Descrever-Xex([string]$xex) {
     if ($exec -and $exec + 0x18 -le $d.Length) {
         $linhas.Add(('title_id {0:X8}, media_id {1:X8}, versão {2}, versão base {3}, disco {4}/{5}' -f (& $u32 ($exec + 0xC)),
             (& $u32 $exec), (& $ver (& $u32 ($exec + 4))), (& $ver (& $u32 ($exec + 8))), $d[$exec + 0x12], $d[$exec + 0x13]))
+        $script:XEX_MIDIA = '{0:X8}' -f (& $u32 $exec)
+        $script:XEX_VERSAO = & $u32 ($exec + 4)
     }
     if ($seg + 0x160 -le $d.Length) {
         $linhas.Add(('imagem: {0} bytes, carregada em 0x{1:X8}, image_flags 0x{2:X8}' -f (& $u32 ($seg + 4)), (& $u32 ($seg + 0x110)), (& $u32 ($seg + 0x10C))))
@@ -551,7 +553,7 @@ Etapa 2 '2_jogo' {
             throw "a .iso escolhida é do jogo $($outros[$sha]), não do $($JOGO['titulo']). Escolha a .iso do $($JOGO['titulo']) ($($JOGO['versao'])); a que foi escolhida serve no port do $($outros[$sha])."
         }
         # what this default.xex is, in the step's log (and so in a report): another edition, or the same game re-encoded
-        $script:SHA1_IMAGEM_LIDA = $null
+        $script:SHA1_IMAGEM_LIDA = $null; $script:XEX_MIDIA = $null; $script:XEX_VERSAO = $null
         try { foreach ($l in (Descrever-Xex $lido)) { Anotar $script:LOG "xex: $l"; Msg "xex: $l" } }
         catch { Anotar $script:LOG "xex: não foi possível descrever ($_)" }
         # the same code in a default.xex written differently (decrypted or decompressed by a download site; reports
@@ -559,6 +561,13 @@ Etapa 2 '2_jogo' {
         # runtime loads that file as it is (it reads every XEX2 format)
         if (-not ($JOGO['sha1_imagem'] -and $script:SHA1_IMAGEM_LIDA -eq $JOGO['sha1_imagem'])) {
             Remove-Item $lido -ErrorAction SilentlyContinue
+            # the port's own disc with a title update put into its default.xex (report 1476: some downloaded images come
+            # "with the update"; same media_id, another version): the code is the update's, so it is said plainly
+            if ($JOGO['media_id'] -and $JOGO['versao_xex'] -and $script:XEX_MIDIA -eq $JOGO['media_id'] -and
+                $null -ne $script:XEX_VERSAO -and $script:XEX_VERSAO -ne [uint32]$JOGO['versao_xex']) {
+                $v = { param($x) '{0}.{1}.{2}.{3}' -f ($x -shr 28), (($x -shr 24) -band 0xF), (($x -shr 8) -band 0xFFFF), ($x -band 0xFF) }
+                throw "a .iso escolhida é do disco certo ($($JOGO['versao'])), mas veio com a atualização do jogo embutida no default.xex (versão $(& $v $script:XEX_VERSAO); a do disco é $(& $v ([uint32]$JOGO['versao_xex']))). Algumas cópias baixadas vêm assim, `"com update`". O port é feito a partir do executável original do disco: use uma .iso do disco original, sem a atualização embutida (o gerador confere a .iso inteira e avisa se ela é idêntica à cópia conhecida do disco)."
+            }
             throw "este jogo não é a versão do port ($($JOGO['versao']), default.xex SHA-1 $($JOGO['sha1_xex']); a sua: $sha)"
         }
         Msg "o default.xex desta cópia foi regravado, mas o código é o mesmo da versão do port: aceito"
