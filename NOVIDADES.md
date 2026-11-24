@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 24/11/2026 · gerador
+### pt
+- **Gerador:** antes de baixar e compilar, confere se a placa de vídeo tem DirectX 12 e, se não tiver, avisa na hora.
+### en
+- **Generator:** before downloading and building, checks that the video card has DirectX 12 and, if it does not, says so right away.
+### es
+- **Generador:** antes de descargar y compilar, comprueba que la tarjeta de video tenga DirectX 12 y, si no la tiene, avisa enseguida.
+
 ## 22/11/2026 · gerador
 ### pt
 - **Gerador:** ao escolher a pasta da versão de PlayStation 3 do jogo, a mensagem agora diz isso direto e explica que o port precisa do disco do Xbox 360.

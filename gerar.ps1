@@ -345,6 +345,78 @@ function Descrever-Xex([string]$xex) {
     return $linhas
 }
 
+# ---------------------------------------------------------------------------- the video card
+# The game draws with Direct3D 12 (feature level 11_0 at least) and gives up at its start without it (report 1468: an
+# Intel HD Graphics 4000, which has no Direct3D 12 driver, after the whole download and build). Asked of Windows the
+# way the engine asks (every adapter DXGI lists, the software ones left out, a device of level 11_0 tested without
+# being made) before anything is downloaded or built. A check that cannot run says nothing and the generation goes on.
+function Adaptadores-D3D12 {
+    if (-not ('OtxD3D12' -as [type])) {
+        Add-Type -Language CSharp -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+public static class OtxD3D12 {
+    [DllImport("dxgi.dll")] static extern int CreateDXGIFactory1(ref Guid riid, out IntPtr factory);
+    [DllImport("d3d12.dll")] static extern int D3D12CreateDevice(IntPtr adapter, int level, ref Guid riid, IntPtr device);
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)] delegate int EnumAdapters1(IntPtr self, uint i, out IntPtr adapter);
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)] delegate int GetDesc1(IntPtr self, IntPtr desc);
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)] delegate uint Release(IntPtr self);
+    static T Slot<T>(IntPtr obj, int i) where T : class {
+        IntPtr fn = Marshal.ReadIntPtr(Marshal.ReadIntPtr(obj), i * IntPtr.Size);
+        return Marshal.GetDelegateForFunctionPointer(fn, typeof(T)) as T;
+    }
+    // one line per adapter: name|vendor|device|software (0/1)|Direct3D 12 level 11_0 (0/1)
+    public static string[] Listar() {
+        Guid fabricaId = new Guid("770aae78-f26f-4dba-a829-253c83d1b387");   // IDXGIFactory1
+        Guid dispositivoId = new Guid("189819f1-1db6-4b57-be54-1821339b85f7"); // ID3D12Device
+        IntPtr fabrica;
+        int hr = CreateDXGIFactory1(ref fabricaId, out fabrica);
+        if (hr < 0) throw new Exception("CreateDXGIFactory1 0x" + hr.ToString("X8"));
+        List<string> linhas = new List<string>();
+        try {
+            for (uint i = 0; i < 16; i++) {
+                IntPtr adaptador;
+                if (Slot<EnumAdapters1>(fabrica, 12)(fabrica, i, out adaptador) != 0) break;
+                IntPtr desc = Marshal.AllocHGlobal(512);
+                try {
+                    string nome = "?"; int fornecedor = 0, aparelho = 0, flags = 0;
+                    if (Slot<GetDesc1>(adaptador, 10)(adaptador, desc) >= 0) {
+                        nome = Marshal.PtrToStringUni(desc);
+                        fornecedor = Marshal.ReadInt32(desc, 256);
+                        aparelho = Marshal.ReadInt32(desc, 260);
+                        flags = Marshal.ReadInt32(desc, 304);
+                    }
+                    int d3d12 = D3D12CreateDevice(adaptador, 0xb000, ref dispositivoId, IntPtr.Zero);
+                    linhas.Add(string.Format("{0}|{1:X4}|{2:X4}|{3}|{4}", nome, fornecedor, aparelho,
+                                             (flags & 2) != 0 ? 1 : 0, d3d12 >= 0 ? 1 : 0));
+                } finally {
+                    Marshal.FreeHGlobal(desc);
+                    Slot<Release>(adaptador, 2)(adaptador);
+                }
+            }
+        } finally {
+            Slot<Release>(fabrica, 2)(fabrica);
+        }
+        return linhas.ToArray();
+    }
+}
+'@
+    }
+    return [OtxD3D12]::Listar()
+}
+function Conferir-Video {
+    try { $lista = @(Adaptadores-D3D12 | Select-Object -Unique) }
+    catch { Msg "placa de vídeo: não foi possível conferir o Direct3D 12 ($($_.Exception.Message)); seguindo"; return }
+    $placas = @($lista | ForEach-Object { $c = $_.Split('|'); [pscustomobject]@{ Nome = $c[0]; Software = $c[3] -eq '1'; D3D12 = $c[4] -eq '1' } } |
+                Where-Object { -not $_.Software })
+    foreach ($p in $placas) { Msg "placa de vídeo: $($p.Nome) (Direct3D 12: $(if ($p.D3D12) { 'sim' } else { 'não' }))" }
+    if (@($placas | Where-Object { $_.D3D12 }).Count) { return }
+    $nomes = if ($placas.Count) { ($placas | ForEach-Object { $_.Nome }) -join ', ' } else { 'nenhuma (só o vídeo básico do Windows)' }
+    throw "a placa de vídeo deste PC não tem Direct3D 12, que o jogo precisa para abrir: $nomes. O port precisa de uma placa de vídeo com DirectX 12 (nível 11_0 ou mais). Se o PC tem outra placa de vídeo, confira se o driver dela está instalado e atualizado. A geração parou aqui, antes de baixar e compilar."
+}
+Conferir-Video
+
 # ---------------------------------------------------------------------------- 1. ferramentas
 # done before but the tools this generator wants are not there (a newer SDK, a deleted folder): again
 if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe')) -or -not (Test-Path (Join-Path $LLVM 'bin\clang++.exe'))) {
@@ -694,6 +766,52 @@ if ($sdkAntes -ne $SDK_VERSAO) {
     Remove-Item (Join-Path $OUT '3_traducao.ok'), (Join-Path $OUT '4_compilar.ok'), (Join-Path $OUT '5_jogar.ok') -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force $OUT | Out-Null
     Set-Content -Path $sdkTxt -Value $SDK_VERSAO -Encoding UTF8
+}
+
+# ---------------------------------------------------------------------------- the disc image, checked whole
+# The generator reads only the default.xex from the disc image; the game reads the rest of it when it plays, so a
+# damaged image (a corrupted download, a bad read off the drive) gets through the generation and closes the game as
+# it loads (report 1463, likely). The image is compared once with the copy of the disc the port was tested with
+# (config\jogo.txt iso_ref = size:SHA-1, a full image of the disc): the same, or what differs said plainly. Nothing is
+# stopped by it: a trimmed image (smaller, the empty space taken out) or one made by another dumping program plays the
+# same. The result is kept in out\gerar\iso_conferida.txt,
+# which the launcher sends along with a report.
+function Conferir-Iso([string]$iso, [string]$saida) {
+    $tamEsperado, $shaEsperado = $JOGO['iso_ref'].Split(':')
+    $arq = Get-Item -LiteralPath $iso
+    $gb = '{0:N2} GB' -f ($arq.Length / 1GB)
+    $linhas = @($iso, "tamanho: $($arq.Length) bytes (a cópia usada nos nossos testes: $tamEsperado)")
+    if ($arq.Length -ne [int64]$tamEsperado) {
+        $res = "a .iso tem outro tamanho que a cópia completa do disco ($gb; a completa tem {0:N2} GB): pode ser uma .iso reduzida, que funciona igual, ou um download incompleto. Se o jogo fechar ao carregar, baixe a .iso de novo." -f ([int64]$tamEsperado / 1GB)
+    } else {
+        Msg "conferindo a .iso inteira ($gb; pode levar alguns minutos) ..."
+        $sha = [Security.Cryptography.SHA1]::Create()
+        $f = [IO.File]::Open($iso, 'Open', 'Read', 'ReadWrite')
+        try {
+            $buf = New-Object byte[] (8MB)
+            $lido = 0L; $proximo = 0.25
+            while (($n = $f.Read($buf, 0, $buf.Length)) -gt 0) {
+                [void]$sha.TransformBlock($buf, 0, $n, $null, 0)
+                $lido += $n
+                if ($lido / $arq.Length -ge $proximo) { Msg ('conferindo a .iso: {0:P0}' -f $proximo); $proximo += 0.25 }
+            }
+            [void]$sha.TransformFinalBlock($buf, 0, 0)
+        } finally { $f.Dispose() }
+        $hash = -join ($sha.Hash | ForEach-Object { $_.ToString('x2') })
+        $linhas += "sha1: $hash (o da cópia usada nos nossos testes: $shaEsperado)"
+        $res = if ($hash -eq $shaEsperado) { 'a .iso é idêntica à cópia do disco usada nos nossos testes: está inteira.' }
+               else { 'aviso: a .iso tem o tamanho do disco completo, mas o conteúdo é diferente da cópia usada nos nossos testes. Cópias feitas por outros programas funcionam; mas, se o jogo fechar ao carregar, ela pode estar danificada (download corrompido ou erro de leitura): baixe a .iso de novo.' }
+    }
+    Msg $res
+    Set-Content -Path $saida -Value (@($linhas[0], $res) + $linhas[1..($linhas.Count - 1)]) -Encoding UTF8
+}
+$isoConferida = Join-Path $OUT 'iso_conferida.txt'
+$isoUsada = if ($Iso) { $Iso } elseif (Test-Path $isoTxt) { Get-Content $isoTxt -Encoding UTF8 | Select-Object -First 1 }
+if ($JOGO['iso_ref'] -and $isoUsada -and [IO.Path]::GetExtension($isoUsada) -ieq '.iso' -and
+    (Test-Path -LiteralPath $isoUsada -PathType Leaf) -and
+    -not ((Test-Path $isoConferida) -and (Get-Content $isoConferida -Encoding UTF8 | Select-Object -First 1) -eq $isoUsada)) {
+    try { Conferir-Iso $isoUsada $isoConferida }
+    catch { Msg "não foi possível conferir a .iso inteira ($($_.Exception.Message)); seguindo" }
 }
 
 # ---------------------------------------------------------------------------- 3. tradução
