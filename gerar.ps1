@@ -771,18 +771,21 @@ if ($sdkAntes -ne $SDK_VERSAO) {
 # ---------------------------------------------------------------------------- the disc image, checked whole
 # The generator reads only the default.xex from the disc image; the game reads the rest of it when it plays, so a
 # damaged image (a corrupted download, a bad read off the drive) gets through the generation and closes the game as
-# it loads (report 1463, likely). The image is compared once with the copy of the disc the port was tested with
-# (config\jogo.txt iso_ref = size:SHA-1, a full image of the disc): the same, or what differs said plainly. Nothing is
-# stopped by it: a trimmed image (smaller, the empty space taken out) or one made by another dumping program plays the
-# same. The result is kept in out\gerar\iso_conferida.txt,
-# which the launcher sends along with a report.
+# it loads (report 1463, likely). The image is compared once with the known dumps of the disc (config\jogo.txt
+# iso_ref = size:SHA-1 of each Redump dump of the game, separated by spaces; the port was tested with the first): the
+# same, or what differs said plainly. Nothing is stopped by it: a trimmed image (smaller, the empty space taken out)
+# or one made by another dumping program plays the same. The result is kept in out\gerar\iso_conferida.txt, which the
+# launcher sends along with a report.
 function Conferir-Iso([string]$iso, [string]$saida) {
-    $tamEsperado, $shaEsperado = $JOGO['iso_ref'].Split(':')
+    $conhecidas = @($JOGO['iso_ref'] -split '\s+' | Where-Object { $_ } | ForEach-Object {
+        $t, $s = $_.Split(':'); [pscustomobject]@{ Tamanho = [int64]$t; Sha1 = $s.ToLower() } })
     $arq = Get-Item -LiteralPath $iso
     $gb = '{0:N2} GB' -f ($arq.Length / 1GB)
-    $linhas = @($iso, "tamanho: $($arq.Length) bytes (a cópia usada nos nossos testes: $tamEsperado)")
-    if ($arq.Length -ne [int64]$tamEsperado) {
-        $res = "a .iso tem outro tamanho que a cópia completa do disco ($gb; a completa tem {0:N2} GB): pode ser uma .iso reduzida, que funciona igual, ou um download incompleto. Se o jogo fechar ao carregar, baixe a .iso de novo." -f ([int64]$tamEsperado / 1GB)
+    $tamanhos = ($conhecidas | ForEach-Object { $_.Tamanho } | Select-Object -Unique) -join ' ou '
+    $linhas = @($iso, "tamanho: $($arq.Length) bytes (das cópias conhecidas do disco: $tamanhos)")
+    $mesmoTamanho = @($conhecidas | Where-Object { $_.Tamanho -eq $arq.Length })
+    if (-not $mesmoTamanho.Count) {
+        $res = "a .iso tem outro tamanho que a cópia completa do disco ($gb; a completa tem {0:N2} GB): pode ser uma .iso reduzida, que funciona igual, ou um download incompleto. Se o jogo fechar ao carregar, baixe a .iso de novo." -f ($conhecidas[0].Tamanho / 1GB)
     } else {
         Msg "conferindo a .iso inteira ($gb; pode levar alguns minutos) ..."
         $sha = [Security.Cryptography.SHA1]::Create()
@@ -798,9 +801,9 @@ function Conferir-Iso([string]$iso, [string]$saida) {
             [void]$sha.TransformFinalBlock($buf, 0, 0)
         } finally { $f.Dispose() }
         $hash = -join ($sha.Hash | ForEach-Object { $_.ToString('x2') })
-        $linhas += "sha1: $hash (o da cópia usada nos nossos testes: $shaEsperado)"
-        $res = if ($hash -eq $shaEsperado) { 'a .iso é idêntica à cópia do disco usada nos nossos testes: está inteira.' }
-               else { 'aviso: a .iso tem o tamanho do disco completo, mas o conteúdo é diferente da cópia usada nos nossos testes. Cópias feitas por outros programas funcionam; mas, se o jogo fechar ao carregar, ela pode estar danificada (download corrompido ou erro de leitura): baixe a .iso de novo.' }
+        $linhas += "sha1: $hash (das cópias conhecidas com esse tamanho: $(($mesmoTamanho | ForEach-Object { $_.Sha1 }) -join ', '))"
+        $res = if (@($mesmoTamanho | Where-Object { $_.Sha1 -eq $hash }).Count) { 'a .iso é idêntica a uma cópia conhecida do disco (Redump): está inteira.' }
+               else { 'aviso: a .iso tem o tamanho do disco completo, mas o conteúdo é diferente das cópias conhecidas do disco (Redump). Cópias feitas por outros programas podem funcionar; mas, se o jogo fechar ao carregar, ela pode estar danificada (download corrompido ou erro de leitura): baixe a .iso de novo.' }
     }
     Msg $res
     Set-Content -Path $saida -Value (@($linhas[0], $res) + $linhas[1..($linhas.Count - 1)]) -Encoding UTF8
