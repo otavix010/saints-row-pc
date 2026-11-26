@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 25/11/2026 · gerador
+### pt
+- **Gerador:** a compilação agora funciona também com versões mais antigas do Visual Studio 2022 Build Tools (que traziam o CMake 3.26 e paravam com "Invalid character escape").
+### en
+- **Generator:** the build now also works with older versions of the Visual Studio 2022 Build Tools (which brought CMake 3.26 and stopped with "Invalid character escape").
+### es
+- **Generador:** la compilación ahora también funciona con versiones más antiguas de Visual Studio 2022 Build Tools (que traían CMake 3.26 y se detenían con "Invalid character escape").
+
 ## 24/11/2026 · gerador
 ### pt
 - **Gerador:** antes de baixar e compilar, confere se a placa de vídeo tem DirectX 12 e, se não tiver, avisa na hora.

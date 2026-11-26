@@ -858,6 +858,11 @@ Etapa 4 '4_compilar' {
     # a script of its own, one command a line: cmd reads each line when it runs it, so the PATH the Visual Studio's
     # environment sets is the one the next lines see (and the whole build's output goes to the step's log)
     $script = Join-Path $OUT 'compilar.cmd'
+    # the paths CMake is given go with forward slashes: it writes the compiler's path as given into a .cmake file of its
+    # own, and CMake 3.26 (the one older Visual Studio 2022 Build Tools bring) reads a backslash there as an escape,
+    # "Invalid character escape '\O'" (report 1491). Forward slashes serve every version.
+    $llvmCm = $LLVM -replace '\\', '/'
+    $sdkCm = $SDK -replace '\\', '/'
     # a PATH entry in quotes ("C:\Program Files (x86)\...", left by some installers) turns the parentheses loose in
     # VsDevCmd.bat's if blocks: "\NVIDIA was unexpected at this time" (report 1392). Windows reads PATH without them.
     $linhas = @(
@@ -866,7 +871,7 @@ Etapa 4 '4_compilar' {
         "call `"$vs\Common7\Tools\VsDevCmd.bat`" -arch=amd64 -host_arch=amd64 >nul",
         "set `"PATH=$LLVM\bin;%PATH%`"",
         "cd /d `"$R`"",
-        "cmake --preset win-amd64-release -DCMAKE_C_COMPILER=`"$LLVM\bin\clang.exe`" -DCMAKE_CXX_COMPILER=`"$LLVM\bin\clang++.exe`" -DCMAKE_PREFIX_PATH=`"$SDK`" -DPORT_CPU_NATIVO=ON || exit /b 1",
+        "cmake --preset win-amd64-release -DCMAKE_C_COMPILER=`"$llvmCm/bin/clang.exe`" -DCMAKE_CXX_COMPILER=`"$llvmCm/bin/clang++.exe`" -DCMAKE_PREFIX_PATH=`"$sdkCm`" -DPORT_CPU_NATIVO=ON || exit /b 1",
         "cmake --build out\build\win-amd64-release --parallel $Jobs || exit /b 1"
     )
     [IO.File]::WriteAllLines($script, $linhas, (New-Object Text.UTF8Encoding($false)))
