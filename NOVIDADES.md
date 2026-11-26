@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 26/11/2026 · gerador
+### pt
+- **Gerador:** se o Visual Studio foi instalado sem o SDK do Windows, avisa logo no começo e diz o que marcar no Visual Studio Installer, em vez de parar no meio da compilação.
+### en
+- **Generator:** if Visual Studio was installed without the Windows SDK, it says so right at the start and tells what to tick in the Visual Studio Installer, instead of stopping halfway through the build.
+### es
+- **Generador:** si Visual Studio se instaló sin el SDK de Windows, avisa al principio y dice qué marcar en el Visual Studio Installer, en lugar de detenerse a mitad de la compilación.
+
 ## 25/11/2026 · gerador
 ### pt
 - **Gerador:** a compilação agora funciona também com versões mais antigas do Visual Studio 2022 Build Tools (que traziam o CMake 3.26 e paravam com "Invalid character escape").

@@ -159,6 +159,28 @@ function Achar-VS {
     if ($p) { return ($p | Select-Object -First 1) }
     return $null
 }
+# the Windows SDK (kernel32.lib and the rest of Windows' libraries and headers): a Visual Studio installed without it
+# gets as far as CMake's first test of the compiler, "could not open 'kernel32.lib'" (report 1503). Looked for where
+# VsDevCmd.bat looks: the Windows Kits root in the registry, a version with both the x64 libraries and the headers.
+function Tem-SdkWindows {
+    $raizes = @()
+    foreach ($k in 'HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows Kits\Installed Roots') {
+        $v = (Get-ItemProperty -Path $k -Name KitsRoot10 -ErrorAction SilentlyContinue).KitsRoot10
+        if ($v) { $raizes += $v }
+    }
+    $raizes += "${env:ProgramFiles(x86)}\Windows Kits\10"
+    foreach ($raiz in ($raizes | Select-Object -Unique)) {
+        $lib = Join-Path $raiz 'Lib'
+        if (-not (Test-Path -LiteralPath $lib)) { continue }
+        foreach ($v in (Get-ChildItem -LiteralPath $lib -Directory -Filter '10.*' -ErrorAction SilentlyContinue)) {
+            if ((Test-Path -LiteralPath (Join-Path $v.FullName 'um\x64\kernel32.lib')) -and
+                (Test-Path -LiteralPath (Join-Path $raiz "Include\$($v.Name)\um\windows.h"))) { return $true }
+        }
+    }
+    return $false
+}
+# "Windows SDK" in it is what the launcher looks for to explain it in English and Spanish
+$ERRO_SDK_WINDOWS = "falta o SDK do Windows (Windows SDK) no Visual Studio: sem ele o compilador não acha as bibliotecas do Windows (kernel32.lib). Abra o Visual Studio Installer, clique em Modificar no Build Tools, marque `"Desenvolvimento para desktop com C++`" com o `"SDK do Windows 11`", instale e gere de novo."
 
 # ---------------------------------------------------------------------------- Xbox 360 disc images (XDVDFS)
 # The volume descriptor sits 0x10000 into the game partition, which starts at one of these offsets
@@ -430,6 +452,7 @@ Etapa 1 '1_ferramentas' {
         throw "falta o Visual Studio 2022 Build Tools (ou mais novo) com C++ e CMake; o 2019 e os anteriores não servem. Instale com:`r`n  winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override `"--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended`""
     }
     Anotar $script:LOG "Visual Studio: $vs"
+    if (-not (Tem-SdkWindows)) { throw $ERRO_SDK_WINDOWS }
     New-Item -ItemType Directory -Force $FERRAMENTAS | Out-Null
     if (-not (Test-Path (Join-Path $SDK 'bin\rexglue.exe'))) {
         $zip = Join-Path $FERRAMENTAS "rexglue-sdk-$SDK_VERSAO.zip"
@@ -836,6 +859,7 @@ Etapa 3 '3_traducao' {
 # ---------------------------------------------------------------------------- 4. compilação
 Etapa 4 '4_compilar' {
     $vs = Achar-VS
+    if (-not (Tem-SdkWindows)) { throw $ERRO_SDK_WINDOWS }
     $build = Join-Path $R 'out\build\win-amd64-release'
     # files dated in the future (a zip keeps its maker's local time, with no time zone: west of it, the SDK's files
     # came out up to hours ahead; report 1359) keep build.ninja always out of date and ninja gives up: they are dated
