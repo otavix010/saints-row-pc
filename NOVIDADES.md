@@ -7,10 +7,13 @@ As mais novas ficam em cima.
 ## 27/11/2026 · gerador
 ### pt
 - **Gerador:** quando a geração para, o launcher mostra a mensagem inteira, sem as linhas técnicas do PowerShell que cortavam o começo dela.
+- **Gerador:** se a .iso escolhida for de outro console (PS3, PS2, PSP ou Xbox original), diz qual é e pede a .iso do Xbox 360.
 ### en
 - **Generator:** when the build stops, the launcher shows the whole message, without the PowerShell technical lines that cut off its beginning.
+- **Generator:** if the chosen .iso is from another console (PS3, PS2, PSP or the original Xbox), it says which one and asks for the Xbox 360 .iso.
 ### es
 - **Generador:** cuando la generación se detiene, el launcher muestra el mensaje completo, sin las líneas técnicas de PowerShell que cortaban su comienzo.
+- **Generador:** si el .iso elegido es de otra consola (PS3, PS2, PSP o Xbox original), dice cuál es y pide el .iso de Xbox 360.
 
 ## 26/11/2026 · gerador
 ### pt

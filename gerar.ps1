@@ -211,6 +211,28 @@ function Achar-Xdvdfs([IO.FileStream]$f) {
     }
     return $null
 }
+# A disc of another console, in the player's words, or $null (report 1340: the PS3 Asura's Wrath, BLUS30721, picked
+# for this port). A PS3 disc has "PlayStation3" and the game's code at its second sector and the volume PS3VOLUME;
+# PS2 and PSP discs are ISO 9660 with PLAYSTATION or PSP GAME as the system.
+function Outro-Console([IO.FileStream]$f) {
+    $latin = [Text.Encoding]::GetEncoding(28591)
+    $setor = New-Object byte[] 2048
+    $s1 = ''; $pvd = ''
+    if ($f.Length -ge 0x8800) {
+        $f.Position = 0x800; [void]$f.Read($setor, 0, 2048); $s1 = $latin.GetString($setor)
+        $f.Position = 0x8000; [void]$f.Read($setor, 0, 2048); $pvd = $latin.GetString($setor)
+    }
+    $iso9660 = $pvd.Length -eq 2048 -and $pvd.Substring(1, 5) -eq 'CD001'
+    $sistema = if ($iso9660) { $pvd.Substring(8, 32).Trim() } else { '' }
+    $volume = if ($iso9660) { $pvd.Substring(40, 32).Trim() } else { '' }
+    if ($s1.StartsWith('PlayStation3') -or $volume -eq 'PS3VOLUME') {
+        $codigo = if ($s1.StartsWith('PlayStation3') -and $s1.Substring(16, 16).Trim([char]0, [char]32) -match '^[A-Z]{4}-?\d{5}') { " ($($Matches[0]))" } else { '' }
+        return "um disco de PlayStation 3$codigo"
+    }
+    if ($sistema -eq 'PSP GAME') { return 'um disco de PSP (UMD)' }
+    if ($sistema -eq 'PLAYSTATION') { return $(if ($f.Length -gt 800MB) { 'um disco de PlayStation 2' } else { 'um disco de PlayStation' }) }
+    return $null
+}
 # Why a file is not a disc image, in the player's words: a compressed file renamed, an incomplete download, or
 # another format (report 860)
 function Explicar-Iso([IO.FileStream]$f, [string]$iso) {
@@ -226,6 +248,8 @@ function Explicar-Iso([IO.FileStream]$f, [string]$iso) {
     elseif ($sig.StartsWith('CISO') -or $sig.StartsWith('ZISO')) { $tipo = 'uma imagem comprimida (CSO/ZSO)' }
     $msg = "não é uma imagem de disco do Xbox 360: $iso ($gb GB)."
     if ($tipo) { return "$msg É $tipo com o nome trocado para .iso: extraia-o primeiro e escolha a .iso de dentro." }
+    $outro = Outro-Console $f
+    if ($outro) { return "$msg É $outro; este port é feito a partir do disco de Xbox 360 do jogo: escolha a .iso do Xbox 360." }
     if ($f.Length -lt 6GB) { return "$msg É menor que um disco de Xbox 360 completo (7 a 8 GB): o download pode estar incompleto." }
     return "$msg Não achamos o sistema de arquivos do disco; o download pode estar incompleto ou corrompido, ou não ser uma cópia do disco (GOD/XBLA não servem)."
 }
@@ -254,6 +278,7 @@ function Ler-Xex([string]$iso, [string]$destino) {
         $pilha = New-Object System.Collections.Stack
         $pilha.Push(0)
         $vistos = @{}
+        $xbe = $false
         while ($pilha.Count) {
             $o = $pilha.Pop()
             if ($vistos[$o] -or $o + 14 -gt $dir.Length) { continue }
@@ -262,6 +287,7 @@ function Ler-Xex([string]$iso, [string]$destino) {
             if ($esq -eq 0xFFFF -and $dirt -eq 0xFFFF) { continue }
             $setor = [BitConverter]::ToUInt32($dir, $o + 4); $tam = [BitConverter]::ToUInt32($dir, $o + 8)
             $nome = [Text.Encoding]::ASCII.GetString($dir, $o + 14, $dir[$o + 13])
+            if ($nome -ieq 'default.xbe') { $xbe = $true }
             if ($nome -ieq 'default.xex') {
                 $f.Position = $base + [int64]$setor * 2048
                 $saida = [IO.File]::Create($destino)
@@ -278,6 +304,8 @@ function Ler-Xex([string]$iso, [string]$destino) {
             if ($esq) { $pilha.Push($esq * 4) }
             if ($dirt) { $pilha.Push($dirt * 4) }
         }
+        # the same file system as the Xbox 360's, with the original Xbox's executable
+        if ($xbe) { throw "não é uma imagem de disco do Xbox 360: $iso. É um disco do Xbox original (tem default.xbe, não default.xex); este port é feito a partir do disco de Xbox 360 do jogo: escolha a .iso do Xbox 360." }
         throw "a .iso não tem default.xex: $iso"
     } finally { $f.Close() }
 }
