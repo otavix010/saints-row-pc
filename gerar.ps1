@@ -31,6 +31,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+# a failure ends the generator with its message alone: PowerShell's own error record (the "No ...\gerar.ps1:<line>"
+# position, "+ throw ...", "+ CategoryInfo") filled the last lines the launcher shows and cut off the start of
+# the message (reports 1357, 1400, 1453)
+trap { Write-Host $_.Exception.Message -ForegroundColor Red; exit 1 }
 $R = $PSScriptRoot
 if (-not $Jobs) { $Jobs = [Environment]::ProcessorCount }
 $OUT = Join-Path $R 'out\gerar'

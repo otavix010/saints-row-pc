@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 27/11/2026 · gerador
+### pt
+- **Gerador:** quando a geração para, o launcher mostra a mensagem inteira, sem as linhas técnicas do PowerShell que cortavam o começo dela.
+### en
+- **Generator:** when the build stops, the launcher shows the whole message, without the PowerShell technical lines that cut off its beginning.
+### es
+- **Generador:** cuando la generación se detiene, el launcher muestra el mensaje completo, sin las líneas técnicas de PowerShell que cortaban su comienzo.
+
 ## 26/11/2026 · gerador
 ### pt
 - **Gerador:** se o Visual Studio foi instalado sem o SDK do Windows, avisa logo no começo e diz o que marcar no Visual Studio Installer, em vez de parar no meio da compilação.
