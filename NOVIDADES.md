@@ -4,6 +4,14 @@ O Otavix Launcher mostra este arquivo na página "Novidades" do jogo. Cada atual
 "## <data> · <versão>" e o texto em português (### pt), inglês (### en) e, quando houver, espanhol (### es).
 As mais novas ficam em cima.
 
+## 27/11/2026 · resolução
+### pt
+- **Resolução:** aberto sem o launcher, o jogo usa 1x (720p interno), o mesmo padrão do launcher; uma escala escolhida no opcoes.toml continua valendo.
+### en
+- **Resolution:** when opened without the launcher, the game uses 1x (720p internal), the same default as the launcher; a scale set in opcoes.toml still applies.
+### es
+- **Resolución:** abierto sin el launcher, el juego usa 1x (720p interno), el mismo predeterminado que el launcher; una escala elegida en opcoes.toml sigue valiendo.
+
 ## 27/11/2026 · gerador
 ### pt
 - **Gerador:** quando a geração para, o launcher mostra a mensagem inteira, sem as linhas técnicas do PowerShell que cortavam o começo dela.

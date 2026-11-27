@@ -60,7 +60,9 @@ inline void Apply() {
   std::string path = REXCVAR_GET(alvos);
   if (path == "auto") path = port::g_rov_on_nvidia && port::GpuVendor() == 0x10DE ? "rov" : "";
   if (path == "rov" || path == "rtv") SetUnlessChosen("render_target_path_d3d12", path);
-  SetUnlessChosen("resolution_scale", "2");
+  // 1x (720p), the launcher's default preset ("Equilibrado · 720p") also when the game is opened without it; a
+  // scale chosen in opcoes.toml or with --resolution_scale stays
+  SetUnlessChosen("resolution_scale", "1");
   // the texture cache's budget: the runtime's (384 MB, 768 at most, render targets 24) makes a game at 2x drop and load
   // again textures it still uses; Asura's Wrath's fights went from 53.6 to 56.5 fps on average with these, and no
   // second under 55 (RTX 5080). They are limits, not an allocation: a game uses what it needs
